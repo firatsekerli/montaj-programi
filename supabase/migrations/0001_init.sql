@@ -267,7 +267,14 @@ do $$
 declare
   r record;
 begin
-  for r in select tablename from pg_tables where schemaname = 'public' loop
+  -- Only our own tables. Excludes extension-owned tables such as PostGIS's
+  -- public.spatial_ref_sys, which we do not own and cannot (need not) alter.
+  for r in
+    select tablename from pg_tables
+    where schemaname = 'public'
+      and tableowner = current_user
+      and tablename <> 'spatial_ref_sys'
+  loop
     execute format('alter table public.%I enable row level security;', r.tablename);
   end loop;
 end $$;
