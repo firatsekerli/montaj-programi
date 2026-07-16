@@ -34,9 +34,10 @@ readiness, and site access constraints — and then track completion.
 
 ## Status
 
-**M0 scaffolded.** Confirmed stack: **TypeScript full-stack on free managed
-services (Vercel + Supabase)**, **Turkish UI** (via `next-intl`, strings in
-catalogs). Remaining open choices are in `docs/open-questions.md`.
+**M0 + M1 shipped, live on Vercel + Supabase.** Confirmed stack: **TypeScript
+full-stack on free managed services (Vercel + Supabase)**, **Turkish UI** (via
+`next-intl`, strings in catalogs). Remaining open choices are in
+`docs/open-questions.md`.
 
 What's in the repo now:
 
@@ -44,10 +45,15 @@ What's in the repo now:
   reproduce the exact numbers from the Dimak spec (7/day, oversize −20%,
   demolition −50%, overtime, team-of-3, travel/access deductions).
 - `packages/shared` — shared Zod schemas/types.
-- `apps/web` — Next.js (App Router) in **Turkish**, tRPC API wired to the rules
-  engine, Supabase server client, and the daily production-check cron route.
-- `supabase/migrations` — full schema: PostGIS, all core tables, and Row-Level
-  Security for multi-tenant isolation.
+- `apps/web` — Next.js (App Router) in **Turkish**:
+  - **Supabase auth** (login, session middleware, route protection).
+  - **Tenant-aware tRPC** (context resolves the user's tenant; `me` + capacity API).
+  - **Admin screens**: dashboard (live capacity from DB), Orders, Teams, Assets,
+    Sites (read), and **Kapı Tipleri** with full create/edit/delete.
+  - Daily production-check cron route.
+- `supabase/migrations` — full schema (PostGIS + all core tables), Row-Level
+  Security for multi-tenant isolation, the **Dimak seed** (`0003`), and auth
+  wiring/grants (`0004`).
 
 ### Develop
 

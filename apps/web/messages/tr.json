@@ -6,27 +6,93 @@
   "nav": {
     "dashboard": "Panel",
     "orders": "Siparişler",
-    "planning": "Planlama",
+    "workItemTypes": "Kapı Tipleri",
     "teams": "Ekipler",
     "assets": "Araçlar ve Ekipman",
     "sites": "Şantiyeler",
-    "settings": "Ayarlar"
+    "signOut": "Çıkış Yap"
+  },
+  "auth": {
+    "signInTitle": "Giriş Yap",
+    "signInSubtitle": "Devam etmek için hesabınıza giriş yapın.",
+    "email": "E-posta",
+    "password": "Parola",
+    "signIn": "Giriş Yap",
+    "signingIn": "Giriş yapılıyor..."
   },
   "home": {
     "title": "Montaj Programı",
     "subtitle": "Kurulum ekiplerinin kapasitesini ve planlamasını yönetin.",
     "capacityDemoTitle": "Kapasite motoru — canlı örnek",
-    "capacityDemoNote": "Aşağıdaki değerler @montaj/rules motorundan hesaplanır; hiçbir kapı tipi koda gömülü değildir.",
-    "perDay": "adet/gün",
-    "normal": "Mesaisiz",
-    "overtime": "Mesaili",
-    "status": "Durum: Planlama aşaması — çekirdek kurulum tamamlandı."
+    "capacityDemoNote": "Aşağıdaki değerler @montaj/rules motorundan, veritabanındaki kapı tiplerinden hesaplanır. Hiçbir tip koda gömülü değildir.",
+    "colType": "Kapı Tipi",
+    "normal": "Mesaisiz (adet/gün)",
+    "overtime": "Mesaili (adet/gün)",
+    "statOrders": "Sipariş",
+    "statTypes": "Kapı Tipi",
+    "statTeams": "Ekip",
+    "statAssets": "Araç/Ekipman",
+    "statSites": "Şantiye"
   },
-  "roles": {
-    "admin": "Yönetici",
-    "planner": "Planlamacı",
-    "ops": "Operasyon Sorumlusu",
-    "field": "Saha Ekibi"
+  "wit": {
+    "title": "Kapı Tipleri",
+    "subtitle": "Firmanızın monte ettiği ürün tipleri ve günlük kapasiteleri — tamamı düzenlenebilir veri.",
+    "new": "Yeni Tip",
+    "newTitle": "Yeni Kapı Tipi",
+    "editTitle": "Kapı Tipini Düzenle",
+    "name": "Ad",
+    "code": "Kod",
+    "category": "Kategori",
+    "model": "Kapasite Modeli",
+    "count": "Adet (sayı/gün)",
+    "effort": "Efor (saat/adet)",
+    "normal": "Mesaisiz (adet/gün)",
+    "overtime": "Mesaili (adet/gün)",
+    "hoursPerUnit": "Adet başına saat",
+    "edit": "Düzenle",
+    "delete": "Sil",
+    "create": "Oluştur",
+    "save": "Kaydet",
+    "empty": "Henüz kapı tipi eklenmemiş."
+  },
+  "teams": {
+    "title": "Ekipler",
+    "subtitle": "Montaj ekipleri, üyeleri ve monte edebildikleri tipler.",
+    "name": "Ekip",
+    "kind": "Tür",
+    "members": "Üyeler",
+    "capabilities": "Yetkinlikler",
+    "subcontractor": "Taşeron",
+    "inHouse": "Kendi Ekibimiz"
+  },
+  "assets": {
+    "title": "Araçlar ve Ekipman",
+    "subtitle": "Filo ve ekipman — taşıma kapasitesi ve konum takibi.",
+    "name": "Ad",
+    "kind": "Tür",
+    "tracked": "Konum Takibi",
+    "location": "Mevcut Konum",
+    "vehicle": "Araç",
+    "equipment": "Ekipman",
+    "yes": "Evet"
+  },
+  "sites": {
+    "title": "Şantiyeler",
+    "subtitle": "Montaj yapılan konumlar ve giriş süreleri.",
+    "name": "Ad",
+    "accessOverhead": "Giriş Süresi",
+    "min": "dk"
+  },
+  "orders": {
+    "title": "Siparişler",
+    "subtitle": "Sipariş listesi — öncelik sipariş tarihine göredir.",
+    "code": "Sipariş No",
+    "site": "Şantiye",
+    "orderDate": "Sipariş Tarihi",
+    "productionReady": "Üretim Hazır",
+    "items": "Kalemler",
+    "statusCol": "Durum",
+    "demolition": "Kırım/Sökme"
   },
   "order": {
     "status": {
@@ -36,6 +102,12 @@
       "completed": "Tamamlandı",
       "blocked": "Engellendi"
     }
+  },
+  "roles": {
+    "admin": "Yönetici",
+    "planner": "Planlamacı",
+    "ops": "Operasyon Sorumlusu",
+    "field": "Saha Ekibi"
   },
   "common": {
     "save": "Kaydet",

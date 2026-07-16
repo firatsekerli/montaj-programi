@@ -63,6 +63,23 @@ Goal: see the app live in your browser. ~10 minutes. Nothing here costs money.
 
 ---
 
+## Part A2 — Seed data + login (M1)
+
+After `0001` and `0002`, run the remaining migrations and create a login:
+
+1. **SQL Editor** → run [`supabase/migrations/0003_seed_dimak.sql`](../supabase/migrations/0003_seed_dimak.sql)
+   (loads the Dimak tenant: door types, rules, teams, fleet, sites, a little backlog).
+2. **SQL Editor** → run [`supabase/migrations/0004_auth.sql`](../supabase/migrations/0004_auth.sql)
+   (creates the signup→profile trigger, grants, and auto-attaches new users to Dimak as admin).
+3. **Create your user:** Authentication → **Users → Add user** → enter email + password
+   and tick **Auto Confirm User**. The trigger links you to the Dimak tenant automatically.
+4. **Recommended:** Authentication → Providers → Email → turn **off** "Allow new users to
+   sign up", so only users you create in the dashboard can log in (the auto-attach is a
+   single-org convenience until per-tenant invites land).
+
+Then log in at `https://YOUR-APP.vercel.app/login` and you'll land on the dashboard with
+the seeded Dimak data — Orders, Kapı Tipleri (create/edit/delete), Teams, Assets, Sites.
+
 ## Part C — See it
 
 - Open the deployment URL Vercel gives you → the **Turkish homepage** with the
