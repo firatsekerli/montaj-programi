@@ -16,9 +16,14 @@ export interface CurrentContext {
  */
 export const getCurrentContext = cache(async (): Promise<CurrentContext> => {
   const supabase = await createSupabaseServerClient();
+  // Read the session from the cookie (local, no network round-trip). The
+  // middleware already validated + refreshed the token for this request, and
+  // Row-Level Security is the real gate on every query, so we don't pay for a
+  // second getUser() network call on every page navigation.
   const {
-    data: { user },
-  } = await supabase.auth.getUser();
+    data: { session },
+  } = await supabase.auth.getSession();
+  const user = session?.user ?? null;
 
   if (!user) return { user: null, tenantId: null, tenantName: null, role: null };
 

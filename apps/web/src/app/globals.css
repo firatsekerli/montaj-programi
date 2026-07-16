@@ -443,6 +443,44 @@ label.checkbox input {
   gap: 0.75rem;
 }
 
+/* ---- Loading skeletons ---- */
+.skeleton {
+  background: linear-gradient(90deg, var(--panel) 25%, var(--panel-2) 37%, var(--panel) 63%);
+  background-size: 400% 100%;
+  border-radius: 6px;
+  animation: sk-shimmer 1.2s ease-in-out infinite;
+}
+.sk-title {
+  height: 28px;
+  width: 220px;
+  margin-bottom: 0.6rem;
+}
+.sk-sub {
+  height: 14px;
+  width: 340px;
+  margin-bottom: 1.5rem;
+  opacity: 0.7;
+}
+.sk-row {
+  height: 18px;
+  width: 100%;
+  margin: 0.6rem 0;
+  opacity: 0.6;
+}
+@keyframes sk-shimmer {
+  0% {
+    background-position: 100% 0;
+  }
+  100% {
+    background-position: 0 0;
+  }
+}
+@media (prefers-reduced-motion: reduce) {
+  .skeleton {
+    animation: none;
+  }
+}
+
 /* ---- Auth ---- */
 .auth {
   display: grid;
