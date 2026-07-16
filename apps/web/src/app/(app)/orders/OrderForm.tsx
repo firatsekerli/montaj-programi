@@ -30,6 +30,7 @@ export function OrderForm({
     orderDate?: string;
     productionReadyDate?: string;
     requiresDemolition?: boolean;
+    productionConfirmed?: boolean;
     status?: string;
     lines?: Line[];
   };
@@ -111,6 +112,15 @@ export function OrderForm({
           defaultChecked={defaults.requiresDemolition}
         />
         {t("requiresDemolition")}
+      </label>
+
+      <label className="checkbox">
+        <input
+          type="checkbox"
+          name="production_confirmed"
+          defaultChecked={defaults.productionConfirmed}
+        />
+        {t("productionConfirmed")}
       </label>
 
       <fieldset>

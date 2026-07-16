@@ -26,8 +26,16 @@ export default async function PlanningPage({
 
   const [{ data: teams }, { data: plan }] = await Promise.all([
     supabase.from("team").select("id, name").order("preference_weight"),
-    supabase.from("plan").select("id").eq("date_from", weekStart).maybeSingle(),
+    supabase.from("plan").select("id, unplaced").eq("date_from", weekStart).maybeSingle(),
   ]);
+
+  interface Unplaced {
+    orderCode: string;
+    remaining: number;
+    reason: "no_team" | "not_ready" | "no_capacity";
+    readyDate: string | null;
+  }
+  const unplaced: Unplaced[] = (plan?.unplaced as Unplaced[] | undefined) ?? [];
 
   let assignments: BoardAssignment[] = [];
   if (plan) {
@@ -76,6 +84,36 @@ export default async function PlanningPage({
         <p className="note">{t("noTeams")}</p>
       ) : (
         <PlanningBoard teams={teams ?? []} weekDays={weekDays} assignments={assignments} />
+      )}
+
+      {unplaced.length > 0 && (
+        <div className="panel unplaced-panel">
+          <h2>{t("unplacedTitle")}</h2>
+          <p className="note">{t("unplacedNote")}</p>
+          <ul className="unplaced-list">
+            {unplaced.map((u, i) => (
+              <li key={`${u.orderCode}-${i}`}>
+                <span className="mono">{u.orderCode}</span>
+                <span className="muted-cell">
+                  {u.remaining} {t("unitsShort")}
+                </span>
+                <span className="badge sub">
+                  {u.reason === "not_ready"
+                    ? u.readyDate
+                      ? t("reasonNotReadyDate", {
+                          date: format.dateTime(new Date(`${u.readyDate}T00:00:00`), {
+                            dateStyle: "medium",
+                          }),
+                        })
+                      : t("reasonNotReady")
+                    : u.reason === "no_team"
+                      ? t("reasonNoTeam")
+                      : t("reasonNoCapacity")}
+                </span>
+              </li>
+            ))}
+          </ul>
+        </div>
       )}
     </main>
   );

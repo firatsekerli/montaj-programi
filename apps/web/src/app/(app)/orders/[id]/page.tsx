@@ -42,6 +42,7 @@ export default async function EditOrderPage({ params }: { params: Promise<{ id: 
           orderDate: row.order_date,
           productionReadyDate: row.production_ready_date ?? undefined,
           requiresDemolition: row.requires_demolition,
+          productionConfirmed: row.production_confirmed,
           status: row.status,
           lines,
         }}

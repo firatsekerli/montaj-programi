@@ -142,6 +142,7 @@
     "status": "Durum",
     "demolition": "Kırım/Sökme",
     "requiresDemolition": "Kapı sökme / duvar kırma var mı?",
+    "productionConfirmed": "Üretim hazır (tarihe bakılmaksızın planlanabilir)",
     "lines": "Sipariş Kalemleri",
     "addLine": "Kalem Ekle",
     "type": "Kapı Tipi",
@@ -159,7 +160,14 @@
     "nextWeek": "Sonraki hafta",
     "noPlan": "Bu hafta için henüz plan oluşturulmadı. \"Planı Oluştur\" ile başlayın.",
     "noTeams": "Önce en az bir ekip ekleyin.",
-    "dayShare": "{pct}% gün"
+    "dayShare": "{pct}% gün",
+    "unplacedTitle": "Planlanamayan siparişler",
+    "unplacedNote": "Aşağıdaki kalemler bu haftaya yerleştirilemedi:",
+    "unitsShort": "adet",
+    "reasonNotReady": "Üretim hazır değil",
+    "reasonNotReadyDate": "Üretim {date} tarihinde hazır",
+    "reasonNoTeam": "Yetkin ekip yok",
+    "reasonNoCapacity": "Bu hafta kapasite yetmedi"
   },
   "order": {
     "status": {

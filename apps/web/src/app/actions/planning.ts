@@ -18,17 +18,19 @@ export async function generatePlan(weekStart: string) {
   const { data: orders } = await supabase
     .from("work_order")
     .select(
-      "id, code, order_date, production_ready_date, requires_demolition, site:site_id(id, access_overhead_min), order_line(id, work_item_type_id, quantity, attributes)",
+      "id, code, order_date, production_ready_date, production_confirmed, requires_demolition, site:site_id(id, access_overhead_min), order_line(id, work_item_type_id, quantity, attributes)",
     )
     .in("status", ["backlog", "planned"]);
 
   const items: ScheduleItem[] = [];
+  const readyByLine = new Map<string, string | null>();
   for (const order of orders ?? []) {
     const site = one<{ id: string; access_overhead_min: number }>(order.site);
     if (!site) continue;
     for (const line of order.order_line ?? []) {
       const type = ctx.typeMap.get(line.work_item_type_id);
       if (!type) continue;
+      readyByLine.set(line.id, order.production_ready_date);
       items.push({
         orderLineId: line.id,
         orderId: order.id,
@@ -39,19 +41,27 @@ export async function generatePlan(weekStart: string) {
         quantity: line.quantity,
         facts: lineFacts(line.attributes, order),
         productionReadyDate: order.production_ready_date,
+        productionConfirmed: order.production_confirmed,
         priority: Date.parse(order.order_date) || 0,
       });
     }
   }
 
   const weekDays = weekDaysFrom(weekStart, 5);
-  const { assignments } = schedule({
+  const { assignments, unplaced } = schedule({
     weekDays,
     shift: ctx.shift,
     rules: ctx.rules,
     teams: ctx.teams,
     items,
   });
+
+  const unplacedDetail = unplaced.map((u) => ({
+    orderCode: u.orderCode,
+    remaining: u.remaining,
+    reason: u.reason,
+    readyDate: readyByLine.get(u.orderLineId) ?? null,
+  }));
 
   // Replace any existing plan for this week (assignments cascade).
   await supabase.from("plan").delete().eq("tenant_id", tenantId).eq("date_from", weekStart);
@@ -63,6 +73,7 @@ export async function generatePlan(weekStart: string) {
       date_from: weekStart,
       date_to: weekDays[weekDays.length - 1],
       status: "draft",
+      unplaced: unplacedDetail,
     })
     .select("id")
     .single();

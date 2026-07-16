@@ -32,6 +32,8 @@ export interface ScheduleItem {
   facts: Facts;
   /** ISO date; the item cannot be installed before production is ready. */
   productionReadyDate: string | null;
+  /** If production is confirmed done, the readiness date no longer gates it. */
+  productionConfirmed?: boolean;
   /** Lower = higher priority (typically the order date as a sortable string). */
   priority: number;
 }
@@ -109,7 +111,7 @@ export function schedule(input: ScheduleInput): ScheduleOutput {
     }
 
     const readyDays = weekDays.filter(
-      (d) => !item.productionReadyDate || d >= item.productionReadyDate,
+      (d) => item.productionConfirmed || !item.productionReadyDate || d >= item.productionReadyDate,
     );
     if (readyDays.length === 0) {
       unplaced.push(unplacedOf(item, item.quantity, "not_ready"));

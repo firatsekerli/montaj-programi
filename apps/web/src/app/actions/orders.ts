@@ -27,6 +27,7 @@ function parse(formData: FormData) {
     order_date: orderDate,
     production_ready_date: readyRaw || (orderDate ? addDays(orderDate, DEFAULT_LEADTIME_DAYS) : null),
     requires_demolition: formData.get("requires_demolition") === "on",
+    production_confirmed: formData.get("production_confirmed") === "on",
     status: String(formData.get("status") ?? "backlog"),
   };
 }
