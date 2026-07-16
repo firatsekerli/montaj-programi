@@ -5,14 +5,17 @@ Dimak dataset is the running acceptance test throughout.
 
 ## M0 — Foundations (repo + infra)
 
-- Monorepo (pnpm + Turborepo): `apps/web`, `apps/api`, `packages/shared`,
+- Monorepo (pnpm + Turborepo): `apps/web` (Next.js + tRPC), `packages/shared`,
   `packages/rules`.
-- `infra/docker-compose`: PostgreSQL + PostGIS, Redis.
-- Prisma schema for the core entities in `docs/data-model.md`; migrations.
-- Auth + tenant scaffolding (single tenant to start), RBAC roles
-  (admin / planner / ops / field).
+- Supabase project (Postgres + PostGIS enabled); Vercel project linked to the
+  repo with preview deploys.
+- Migrations in `supabase/migrations` for the core entities in
+  `docs/data-model.md`; pooled connection wired for serverless.
+- Supabase Auth + tenant scaffolding (single tenant to start), RLS policies,
+  RBAC roles (admin / planner / ops / field).
+- next-intl configured, `tr` default locale, `messages/tr.json` seeded.
 
-**Demo:** log in, see empty admin.
+**Demo:** log in (Turkish UI), see empty admin, deployed on Vercel.
 
 ## M1 — Configuration (make it universal)
 

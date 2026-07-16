@@ -3,6 +3,13 @@
 These change the design. Current docs assume the **Recommended** option in each;
 tell me to switch any of them.
 
+## Resolved
+- **Stack:** TypeScript full-stack — confirmed.
+- **Hosting:** free managed services — **Vercel + Supabase** (Next.js API folded
+  into route handlers; no separate NestJS server). See `docs/architecture.md`.
+- **UI language:** **Turkish** via `next-intl` (default locale `tr`), strings in
+  catalogs (not hard-coded) so other languages can be added later.
+
 ## 1. Scope of "universal"
 - **A. Multi-tenant SaaS** — many companies, each configures its own domain in
   isolation. More upfront work (RLS, config UI, onboarding).
@@ -23,20 +30,24 @@ tell me to switch any of them.
 - **B. Web + native mobile** — better offline field UX, more work.
 - **C. Web/desktop only** — office enters completion; no field app yet.
 
-## 4. Tech stack
-- **A. TypeScript full-stack** *(assumed)* — Next.js + NestJS + Postgres; one
-  language, shared types.
-- **B. Python backend + TS frontend** — better if auto-optimization is required
-  from day one.
-- **C. You decide** — chosen from the answers above.
+## 4. API shape (new, from the free-tier decision)
+- **A. Fold API into Next.js route handlers (tRPC)** *(assumed)* — one Vercel
+  deploy, truly free, typed end-to-end.
+- **B. Keep a separate NestJS service** on a free container host (Render/
+  Railway/Fly) — more structure, more moving parts, hosts sleep on free tiers.
 
-## 5. Routing/travel-time provider
-Self-hosted (OSRM/Valhalla — no per-call cost, needs map data + ops) vs. hosted
-API (Mapbox/Google — easy, per-call cost, data leaves the building). Affects
-`infra` and budget. *Assumed: start with a hosted API for speed, keep the
-provider behind an interface to swap to self-hosted.*
+## 5. Database provider (new)
+- **A. Supabase** *(assumed)* — bundles Postgres+PostGIS, Auth, RLS, Realtime,
+  cron for free; best fit for this app's needs.
+- **B. Neon** — excellent serverless Postgres with branching, but DB-only;
+  requires wiring Auth.js + Upstash + Vercel Cron separately.
 
-## 6. Domain specifics to confirm with the customer (Dimak) — data, not code
+## 6. Routing/travel-time provider
+Hosted free API (**OpenRouteService** *(assumed)*, or Mapbox free tier) vs.
+self-hosted OSRM/Valhalla (no per-call cost, but needs a server — not free
+serverless). Kept behind an interface either way.
+
+## 7. Domain specifics to confirm with the customer (Dimak) — data, not code
 - Is the industrial-door effort truly a function of dimensions (m²)? What curve?
 - Exact oversize threshold semantics: is it AND (width **and** height) as
   written, or either?
@@ -45,6 +56,6 @@ provider behind an interface to swap to self-hosted.*
 - Do subcontractors have hard capacity caps (Faruk = 2/day) modeled as a team
   capacity ceiling? *(Assumed yes.)*
 
-## 7. Auth / SSO
-Email+password to start, or SSO (Google/Microsoft/Keycloak) required? Affects
-the auth choice in `docs/architecture.md`.
+## 8. Auth / SSO
+Supabase Auth email+password to start, or SSO (Google/Microsoft) required?
+Supabase supports both; affects only configuration.

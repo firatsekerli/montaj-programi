@@ -35,5 +35,6 @@ readiness, and site access constraints — and then track completion.
 ## Status
 
 **Planning phase.** No application code yet — this repository currently holds
-the design. Stack and scope choices in these docs are recommendations open to
-revision; see `docs/open-questions.md`.
+the design. Confirmed so far: **TypeScript full-stack on free managed services
+(Vercel + Supabase)**, **Turkish UI** (via `next-intl`, strings in catalogs).
+Remaining open choices are in `docs/open-questions.md`.

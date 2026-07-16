@@ -18,85 +18,126 @@ Two mechanisms deliver this:
 2. **Data-driven rules** — capacity modifiers, priority, and lead-time defaults
    are rows interpreted by the engine, editable in an admin UI.
 
-## Recommended stack
+## Recommended stack (free-tier / serverless)
 
-> These are recommendations for the planning phase. See
-> `docs/open-questions.md` for the choices that would change them.
+We keep the **TypeScript full-stack** decision, but shape it to run entirely on
+free managed services (Vercel + Supabase). The main change from a classic setup:
+**there is no separate always-on NestJS server** — the API lives inside Next.js
+route handlers, which deploy as serverless functions on Vercel. Same language,
+same shared types, one deploy, zero server to run.
 
-| Layer | Choice | Why |
-|-------|--------|-----|
-| **Language** | TypeScript end-to-end | One language for a UI-heavy planning tool; large hiring pool; shared types (API ↔ UI) via a monorepo |
-| **Frontend** | Next.js (React) + TypeScript | SSR for the admin/reporting screens, client-side interactivity for the board; PWA for field phones |
-| **Planning board** | dnd-kit (custom drag-drop) or FullCalendar | Day/team grid with drag-to-assign; dnd-kit gives full control |
-| **Maps / routing UI** | MapLibre GL + Leaflet fallback | Show sites, routes, travel-time context; no vendor lock-in |
-| **Backend** | NestJS (Node/TypeScript) | Structured modules, DI, validation, guards for RBAC; REST + optional GraphQL |
-| **Database** | PostgreSQL 16 + **PostGIS** | Relational core + `JSONB` dynamic fields + geo/travel-time in one engine |
-| **ORM / migrations** | Prisma (+ raw SQL for PostGIS/JSONB where needed) | Type-safe queries, painless migrations |
-| **Async jobs** | BullMQ + Redis | Production-readiness checks, travel-matrix precompute, notifications |
-| **Routing / travel time** | OSRM or Valhalla (self-host), or Mapbox/Google Directions | Compute minutes from team base → site; cache in a travel matrix |
-| **Auth** | Auth.js / Keycloak (if SSO needed) | Email + role-based access (ops manager, planner, field, admin) |
-| **Optimization (later)** | Python microservice using **Google OR-Tools** | Only if/when we want *fully automatic* scheduling; kept out of the main path for MVP |
+| Layer | Choice (free tier) | Why |
+|-------|--------------------|-----|
+| **Hosting / frontend** | **Vercel** (Hobby) — Next.js (React, App Router) + PWA | Free hosting, preview deploys, cron, edge. One repo, one deploy. |
+| **API** | **Next.js Route Handlers + tRPC + Zod** | Serverless-friendly; typed end-to-end; replaces the separate NestJS server. Structure via a service layer + the `packages/rules` engine. |
+| **Database + Auth + Realtime** | **Supabase** (free) — PostgreSQL 15 + **PostGIS**, Auth, Row-Level Security, Realtime, Storage | Covers DB, login, multi-tenant isolation, and live board updates in one free tier. PostGIS is available as an extension. |
+| **ORM / migrations** | **Drizzle ORM** (serverless-friendly) or Prisma | Drizzle is lighter and edge/serverless-friendly; either works. Use Supabase's **pooled** connection string (Supavisor) from serverless. |
+| **Scheduled jobs** | **Vercel Cron** + Supabase **`pg_cron`** / Edge Functions | The "2-weeks-before production check" is a daily cron — no always-on worker needed. Upstash QStash (free) if we later need a real queue. |
+| **Routing / travel time** | **OpenRouteService** free API (matrix + directions), behind an interface | Genuinely free tier, no server to host. Swap to Mapbox/self-hosted OSRM later without touching callers. |
+| **Planning board** | dnd-kit (drag-drop) + Supabase Realtime | Day/team grid; realtime so multiple planners see live changes. |
+| **Maps UI** | MapLibre GL (free, no key) + OpenStreetMap tiles | No vendor lock-in, no billing. |
+| **i18n** | **next-intl**, default locale `tr` | All UI strings in message catalogs (see below). |
+| **Optimizer (later, optional)** | Python + Google OR-Tools on a separate host (Fly.io / Railway / Modal free tier) | Only if we want fully-automatic scheduling; kept off the free serverless path and behind the `Scheduler` interface. |
 
-### Why not Python for the whole backend?
+### Supabase vs. Neon
 
-Python + FastAPI is a fine alternative and is **better if we commit to automatic
-optimization from day one** (OR-Tools is Python-first). The trade-off is two
-languages to maintain and no shared types with the frontend. Recommendation:
-start TypeScript-only with a **hybrid seam** — the scheduler lives behind a
-clean interface so a Python OR-Tools solver can replace the heuristic later
-without touching the rest of the app. Best of both.
+Both are free Postgres. **Supabase is the recommendation** because this app needs
+**Auth + Row-Level Security (multi-tenant) + Realtime (live board) + cron**, and
+Supabase bundles all of them free. **Neon** is an excellent DB (great serverless
+autoscaling and branching) but is DB-only — choosing it means adding Auth.js +
+Upstash + Vercel Cron separately. Pick Neon only if you specifically want its
+branching workflow and don't mind wiring auth/realtime yourself.
+
+### Free-tier caveats (be aware, not blockers)
+
+- **Vercel Hobby** is intended for non-commercial use; fine for building and
+  piloting. A production deployment for a real business (Dimak) may need Vercel
+  **Pro**, or self-hosting Next.js on a container host.
+- **Supabase free** pauses a project after ~1 week of inactivity and caps DB
+  size (~500 MB) and egress. Great for dev/MVP/pilot; production likely wants
+  the paid tier eventually.
+- Everything above stays **behind interfaces** (DB client, routing, jobs), so
+  moving a piece to a paid/self-hosted option later is a config change, not a
+  rewrite.
+
+### Why fold the API into Next.js instead of keeping NestJS?
+
+NestJS is designed as a long-running server; on Vercel's serverless model it
+runs awkwardly (cold starts, it wants to own the process). Route handlers +
+tRPC give the same typed API with zero servers to manage and a truly free
+deploy. If you later prefer NestJS's module structure, it can be split back out
+onto a free container host (Render/Railway/Fly) — the frontend won't care. This
+fork is noted in `docs/open-questions.md`.
+
+## Turkish / internationalization
+
+The UI ships in **Turkish** but we do **not** hard-code Turkish strings — that
+would fight the "universal" goal and block a future English/other-language
+tenant. Instead:
+
+- **next-intl** with `tr` as the default (and only, for now) locale; every
+  user-facing string lives in `messages/tr.json`. Adding a language later = add
+  a catalog, no code changes.
+- **Locale-correct formatting**: dates/numbers via `Intl` with `tr-TR`;
+  app timezone **`Europe/Istanbul`**.
+- **Turkish casing pitfall**: Turkish has dotted/dotless i (`i/İ`, `ı/I`). Never
+  use default `toUpperCase()/toLowerCase()` on user text — use
+  `toLocaleUpperCase('tr-TR')` / `toLocaleLowerCase('tr-TR')`. Do case-insensitive
+  search/sort in Postgres with a **`tr-TR` collation** (or `citext` + Turkish
+  collation) so "İstanbul"/"istanbul" sort and match correctly.
+- **Domain data is separate from UI language**: work-item type names, team
+  names, etc. are tenant data (already Turkish for Dimak) and are stored as
+  entered — only the *application chrome* goes through i18n catalogs.
 
 ## System shape
 
 ```
 ┌────────────────────────────────────────────────────────────┐
-│  Next.js frontend (PWA)                                      │
+│  Vercel — Next.js (PWA, Turkish UI via next-intl)            │
 │  • Admin: define types, rules, teams, assets, sites          │
 │  • Planner: backlog → drag-drop day/team board + map         │
 │  • Field: today's jobs, mark complete (mobile)               │
-└───────────────┬────────────────────────────────────────────┘
-                │  REST/GraphQL (typed)
-┌───────────────▼────────────────────────────────────────────┐
-│  NestJS API                                                 │
-│  • CRUD for all config entities (multi-tenant scoped)        │
-│  • Rules engine (capacity computation)                       │
-│  • Scheduler service  ── interface ──►  [heuristic now]      │
-│                                          [OR-Tools later]    │
-│  • Jobs: production checks, travel precompute, notifications │
-└───────┬───────────────────────────┬────────────────────────┘
-        │                           │
-┌───────▼─────────┐        ┌────────▼──────────┐
-│ PostgreSQL      │        │ Routing (OSRM/    │
-│ + PostGIS       │        │ Valhalla/Mapbox)  │
-│ + JSONB config  │        │ → travel matrix   │
-└─────────────────┘        └───────────────────┘
-        │
-┌───────▼─────────┐
-│ Redis + BullMQ  │
-└─────────────────┘
+│  • API: tRPC route handlers (serverless functions)           │
+│  • Vercel Cron → daily production-readiness check            │
+└───────────────┬───────────────────────────┬────────────────┘
+                │ pooled Postgres            │ HTTPS
+┌───────────────▼─────────────────┐  ┌───────▼────────────────┐
+│  Supabase                        │  │ OpenRouteService (free) │
+│  • PostgreSQL + PostGIS + JSONB  │  │ → travel/matrix, cached │
+│  • Auth + Row-Level Security     │  └─────────────────────────┘
+│  • Realtime (live board)         │
+│  • pg_cron / Edge Functions      │
+└──────────────────────────────────┘
+                │ (later, optional)
+        ┌───────▼───────────────────┐
+        │ Python OR-Tools optimizer │  behind the Scheduler interface
+        │ (Fly.io / Railway free)   │
+        └───────────────────────────┘
 ```
 
 ## Multi-tenancy
 
-Every table carries `tenant_id`; enforced with PostgreSQL **row-level security**
-so a query can never leak across tenants. A single-org deployment simply has one
-tenant — no code difference. This keeps the "sell it to many companies" door
-open without paying full SaaS complexity up front.
+Every table carries `tenant_id`, enforced with Supabase/PostgreSQL **row-level
+security** so a query can never leak across tenants. A single-org deployment
+simply has one tenant — no code difference.
 
 ## Repository layout (proposed)
 
 ```
 /apps
-  /web        → Next.js frontend
-  /api        → NestJS backend
-  /optimizer  → (later) Python OR-Tools service
+  /web            → Next.js app: UI + tRPC API route handlers + Vercel Cron
 /packages
-  /shared     → shared TS types, JSON-Schema definitions, rule types
-  /rules      → the capacity rules engine (pure, testable, no I/O)
-/docs         → these design documents
-/infra        → docker-compose (Postgres+PostGIS, Redis, OSRM), IaC
+  /shared         → shared TS types, Zod/JSON-Schema definitions, rule types
+  /rules          → the capacity rules engine (pure, testable, no I/O)
+/supabase
+  /migrations     → SQL migrations (tables, PostGIS, RLS policies, pg_cron)
+  /functions      → Edge Functions (if any)
+/messages
+  tr.json         → Turkish UI strings (next-intl)
+/apps/optimizer   → (later) Python OR-Tools service, deployed separately
+/docs             → these design documents
 ```
 
-Monorepo tooling: pnpm workspaces + Turborepo. The **`/packages/rules`** engine
+Monorepo tooling: pnpm workspaces + Turborepo. The **`packages/rules`** engine
 is deliberately pure (data in → numbers out) so it is unit-testable against the
-exact Dimak examples in the spec as fixtures.
+exact Dimak examples in the spec as fixtures — independent of Vercel/Supabase.
