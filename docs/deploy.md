@@ -18,7 +18,11 @@ Goal: see the app live in your browser. ~10 minutes. Nothing here costs money.
 2. Wait ~2 min for it to provision.
 3. **Run the schema.** Left sidebar → **SQL Editor** → **New query**, then:
    - Paste the entire contents of [`supabase/migrations/0001_init.sql`](../supabase/migrations/0001_init.sql) → **Run**.
+     - A dialog "Potential issue detected … tables without RLS" appears. This is
+       expected — click **Run without RLS**. (The next script turns RLS on with
+       the proper policies. Do not use "Run and enable RLS".)
    - New query again → paste [`supabase/migrations/0002_rls.sql`](../supabase/migrations/0002_rls.sql) → **Run**.
+     This enables Row-Level Security and adds the tenant-isolation policies.
    - (The first script enables PostGIS itself. If it ever errors, go to
      **Database → Extensions**, enable `postgis`, then re-run.)
 4. **Grab your keys.** Left sidebar → **Project Settings → API**. Copy:
