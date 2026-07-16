@@ -87,6 +87,30 @@ describe("scheduler", () => {
     expect(unplaced[0]).toMatchObject({ reason: "not_ready" });
   });
 
+  it("spreads work across capable teams instead of overloading one", () => {
+    // Two fire-capable teams. A fills up on item1; item2 must go to the idle B.
+    const a = team({ id: "A" });
+    const b = team({ id: "B" });
+    const { assignments, unplaced } = schedule({
+      weekDays: WEEK,
+      shift: dimakShift,
+      rules: dimakRules,
+      teams: [a, b],
+      items: [
+        item({ orderLineId: "l1", orderCode: "SIP-A", quantity: 35, priority: 1 }), // 7/day × 5 = fills A
+        item({ orderLineId: "l2", orderCode: "SIP-B", quantity: 5, priority: 2 }),
+      ],
+    });
+    expect(unplaced).toHaveLength(0);
+    const teamsUsed = new Set(assignments.map((x) => x.teamId));
+    expect(teamsUsed.has("A")).toBe(true);
+    expect(teamsUsed.has("B")).toBe(true);
+    // item2 should land entirely on the less-loaded team B
+    expect(assignments.filter((x) => x.orderLineId === "l2").every((x) => x.teamId === "B")).toBe(
+      true,
+    );
+  });
+
   it("prefers in-house (lower weight) over subcontractor", () => {
     const inhouse = team({ id: "in", preferenceWeight: 10 });
     const sub = team({ id: "sub", preferenceWeight: 100, isSubcontractor: true });

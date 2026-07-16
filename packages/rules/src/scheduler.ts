@@ -92,19 +92,20 @@ export function schedule(input: ScheduleInput): ScheduleOutput {
     visited.set(t.id, v);
   }
 
+  // Current committed load for a team across the week (0 = fully free).
+  const teamLoad = (teamId: string): number => {
+    const b = budget.get(teamId)!;
+    let load = 0;
+    for (const d of weekDays) load += 1 - b.get(d)!;
+    return load;
+  };
+
   const sorted = [...items].sort(
     (a, b) => a.priority - b.priority || a.orderCode.localeCompare(b.orderCode),
   );
 
   for (const item of sorted) {
-    const eligible = teams
-      .filter((t) => t.capableTypeIds.includes(item.type.id))
-      .sort(
-        (a, b) =>
-          a.preferenceWeight - b.preferenceWeight ||
-          (a.travelMinutesToSite[item.siteId] ?? 0) - (b.travelMinutesToSite[item.siteId] ?? 0),
-      );
-
+    const eligible = teams.filter((t) => t.capableTypeIds.includes(item.type.id));
     if (eligible.length === 0) {
       unplaced.push(unplacedOf(item, item.quantity, "no_team"));
       continue;
@@ -118,48 +119,63 @@ export function schedule(input: ScheduleInput): ScheduleOutput {
       continue;
     }
 
-    // Greedy: place with the single most-preferred eligible team, spread across
-    // its available days.
-    const team = eligible[0]!;
-    const facts: Facts = {
-      ...item.facts,
-      "team.headcount": team.headcount,
-      "day.overtime": shift.overtime,
-    };
-    const unit = unitCostDays(item.type, shift, rules, facts);
-    const b = budget.get(team.id)!;
-    const v = visited.get(team.id)!;
-    const roundTrip = team.travelMinutesToSite[item.siteId] ?? 0;
+    // Distribute across capable teams: in-house before subcontractor
+    // (preferenceWeight), then the least-loaded team first, then nearest.
+    // Spill to the next team when one runs out of capacity — so idle teams get
+    // work instead of the item going unplaced.
+    const ordered = [...eligible].sort(
+      (a, b) =>
+        a.preferenceWeight - b.preferenceWeight ||
+        teamLoad(a.id) - teamLoad(b.id) ||
+        (a.travelMinutesToSite[item.siteId] ?? 0) - (b.travelMinutesToSite[item.siteId] ?? 0),
+    );
 
     let remaining = item.quantity;
-    for (const date of readyDays) {
+    for (const team of ordered) {
       if (remaining <= 0) break;
-      if (!Number.isFinite(unit) || unit <= 0) break;
 
-      const rem = b.get(date)!;
-      const siteVisited = v.get(date)!.has(item.siteId);
-      const overhead = siteVisited ? 0 : (roundTrip + item.accessOverheadMinutes) / 60 / hoursPerDay;
-      const available = rem - overhead;
-      if (available <= EPS) continue;
+      const facts: Facts = {
+        ...item.facts,
+        "team.headcount": team.headcount,
+        "day.overtime": shift.overtime,
+      };
+      const unit = unitCostDays(item.type, shift, rules, facts);
+      if (!Number.isFinite(unit) || unit <= 0) continue;
 
-      const maxUnits = Math.floor((available + EPS) / unit);
-      if (maxUnits <= 0) continue;
+      const b = budget.get(team.id)!;
+      const v = visited.get(team.id)!;
+      const roundTrip = team.travelMinutesToSite[item.siteId] ?? 0;
 
-      const place = Math.min(remaining, maxUnits);
-      const cost = place * unit + overhead;
-      assignments.push({
-        orderLineId: item.orderLineId,
-        orderId: item.orderId,
-        orderCode: item.orderCode,
-        teamId: team.id,
-        date,
-        units: place,
-        estimatedCost: cost,
-        typeId: item.type.id,
-      });
-      b.set(date, rem - cost);
-      if (!siteVisited) v.get(date)!.add(item.siteId);
-      remaining -= place;
+      for (const date of readyDays) {
+        if (remaining <= 0) break;
+
+        const rem = b.get(date)!;
+        const siteVisited = v.get(date)!.has(item.siteId);
+        const overhead = siteVisited
+          ? 0
+          : (roundTrip + item.accessOverheadMinutes) / 60 / hoursPerDay;
+        const available = rem - overhead;
+        if (available <= EPS) continue;
+
+        const maxUnits = Math.floor((available + EPS) / unit);
+        if (maxUnits <= 0) continue;
+
+        const place = Math.min(remaining, maxUnits);
+        const cost = place * unit + overhead;
+        assignments.push({
+          orderLineId: item.orderLineId,
+          orderId: item.orderId,
+          orderCode: item.orderCode,
+          teamId: team.id,
+          date,
+          units: place,
+          estimatedCost: cost,
+          typeId: item.type.id,
+        });
+        b.set(date, rem - cost);
+        if (!siteVisited) v.get(date)!.add(item.siteId);
+        remaining -= place;
+      }
     }
 
     if (remaining > 0) {
