@@ -258,23 +258,8 @@ create table task (
 );
 create index task_tenant_idx on task (tenant_id, status);
 
--- ---- Enable Row-Level Security on every table we just created ---------------
--- Secure-by-default: with RLS on but no policies yet, all access is denied.
--- The actual tenant-isolation POLICIES are added in 0002_rls.sql. Doing this
--- here means the tables are never created "open", so Supabase shows no RLS
--- warning and you can simply run this script as-is.
-do $$
-declare
-  r record;
-begin
-  -- Only our own tables. Excludes extension-owned tables such as PostGIS's
-  -- public.spatial_ref_sys, which we do not own and cannot (need not) alter.
-  for r in
-    select tablename from pg_tables
-    where schemaname = 'public'
-      and tableowner = current_user
-      and tablename <> 'spatial_ref_sys'
-  loop
-    execute format('alter table public.%I enable row level security;', r.tablename);
-  end loop;
-end $$;
+-- NOTE: Row-Level Security is enabled together with the tenant-isolation
+-- policies in 0002_rls.sql (on an explicit table list, so it never touches
+-- extension tables like PostGIS's spatial_ref_sys). When you run THIS script,
+-- Supabase will warn that tables are created without RLS — that is expected;
+-- choose "Run without RLS" and then run 0002_rls.sql to secure everything.
