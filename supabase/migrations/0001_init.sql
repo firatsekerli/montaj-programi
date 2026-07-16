@@ -187,7 +187,7 @@ create table site (
 );
 create index site_tenant_idx on site (tenant_id);
 
-create table "order" (
+create table work_order (
   id                    uuid primary key default uuid_generate_v4(),
   tenant_id             uuid not null references tenant (id) on delete cascade,
   code                  text not null,
@@ -202,13 +202,13 @@ create table "order" (
   created_at            timestamptz not null default now(),
   unique (tenant_id, code)
 );
-create index order_tenant_idx on "order" (tenant_id);
-create index order_priority_idx on "order" (tenant_id, order_date);
+create index order_tenant_idx on work_order (tenant_id);
+create index order_priority_idx on work_order (tenant_id, order_date);
 
 create table order_line (
   id                 uuid primary key default uuid_generate_v4(),
   tenant_id          uuid not null references tenant (id) on delete cascade,
-  order_id           uuid not null references "order" (id) on delete cascade,
+  order_id           uuid not null references work_order (id) on delete cascade,
   work_item_type_id  uuid not null references work_item_type (id),
   quantity           int not null check (quantity > 0),
   attributes         jsonb not null default '{}'
@@ -233,7 +233,7 @@ create table assignment (
   plan_id        uuid not null references plan (id) on delete cascade,
   assign_date    date not null,
   team_id        uuid not null references team (id),
-  order_id       uuid not null references "order" (id),
+  order_id       uuid not null references work_order (id),
   order_line_id  uuid references order_line (id),
   units          int not null default 0,
   asset_ids      uuid[] not null default '{}',
@@ -249,7 +249,7 @@ create table task (
   id               uuid primary key default uuid_generate_v4(),
   tenant_id        uuid not null references tenant (id) on delete cascade,
   kind             task_kind not null default 'generic',
-  related_order_id uuid references "order" (id) on delete cascade,
+  related_order_id uuid references work_order (id) on delete cascade,
   due_date         date,
   assignee_role    user_role,
   status           text not null default 'open',
@@ -257,3 +257,17 @@ create table task (
   created_at       timestamptz not null default now()
 );
 create index task_tenant_idx on task (tenant_id, status);
+
+-- ---- Enable Row-Level Security on every table we just created ---------------
+-- Secure-by-default: with RLS on but no policies yet, all access is denied.
+-- The actual tenant-isolation POLICIES are added in 0002_rls.sql. Doing this
+-- here means the tables are never created "open", so Supabase shows no RLS
+-- warning and you can simply run this script as-is.
+do $$
+declare
+  r record;
+begin
+  for r in select tablename from pg_tables where schemaname = 'public' loop
+    execute format('alter table public.%I enable row level security;', r.tablename);
+  end loop;
+end $$;

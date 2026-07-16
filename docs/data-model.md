@@ -85,7 +85,8 @@ site (
   attributes jsonb
 )
 
-order (
+-- named "work_order" (not "order") because ORDER is a reserved SQL keyword.
+work_order (
   id, code, site_id,
   order_date date,
   production_ready_date date,      -- default = order_date + tenant.default_leadtime (Dimak: 7 weeks)

@@ -37,7 +37,7 @@ declare
   t text;
   tenant_tables text[] := array[
     'tenant_setting', 'location', 'work_item_type', 'capacity_rule',
-    'person', 'team', 'availability', 'asset', 'site', 'order',
+    'person', 'team', 'availability', 'asset', 'site', 'work_order',
     'order_line', 'plan', 'assignment', 'task'
   ];
 begin
