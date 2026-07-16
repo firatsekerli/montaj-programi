@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useTransition } from "react";
+import { useEffect, useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
 import { useFormatter, useTranslations } from "next-intl";
 import {
@@ -38,6 +38,12 @@ export function PlanningBoard({
   assignments: BoardAssignment[];
 }) {
   const [items, setItems] = useState(assignments);
+  // Re-sync when the server sends new data (after generate/regenerate, week
+  // navigation, or a move+refresh). useState only seeds on mount, so without
+  // this the board would keep showing stale state after "Yeniden Oluştur".
+  useEffect(() => {
+    setItems(assignments);
+  }, [assignments]);
   const [, startTransition] = useTransition();
   const router = useRouter();
   const format = useFormatter();

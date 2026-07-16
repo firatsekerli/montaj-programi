@@ -92,7 +92,11 @@ export async function generatePlan(weekStart: string) {
       status: "planned",
     }));
     const { error } = await supabase.from("assignment").insert(rows);
-    if (error) throw new Error(error.message);
+    if (error) {
+      // Don't leave a plan with unplaced data but no assignments — roll it back.
+      await supabase.from("plan").delete().eq("id", plan.id);
+      throw new Error(error.message);
+    }
   }
 
   revalidatePath("/planning");
