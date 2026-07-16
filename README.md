@@ -34,7 +34,25 @@ readiness, and site access constraints — and then track completion.
 
 ## Status
 
-**Planning phase.** No application code yet — this repository currently holds
-the design. Confirmed so far: **TypeScript full-stack on free managed services
-(Vercel + Supabase)**, **Turkish UI** (via `next-intl`, strings in catalogs).
-Remaining open choices are in `docs/open-questions.md`.
+**M0 scaffolded.** Confirmed stack: **TypeScript full-stack on free managed
+services (Vercel + Supabase)**, **Turkish UI** (via `next-intl`, strings in
+catalogs). Remaining open choices are in `docs/open-questions.md`.
+
+What's in the repo now:
+
+- `packages/rules` — the pure capacity engine, with **13 passing tests** that
+  reproduce the exact numbers from the Dimak spec (7/day, oversize −20%,
+  demolition −50%, overtime, team-of-3, travel/access deductions).
+- `packages/shared` — shared Zod schemas/types.
+- `apps/web` — Next.js (App Router) in **Turkish**, tRPC API wired to the rules
+  engine, Supabase server client, and the daily production-check cron route.
+- `supabase/migrations` — full schema: PostGIS, all core tables, and Row-Level
+  Security for multi-tenant isolation.
+
+### Develop
+
+```bash
+pnpm install
+pnpm --filter @montaj/rules test     # verify the engine against the Dimak spec
+pnpm --filter @montaj/web dev         # run the app (needs .env — see .env.example)
+```

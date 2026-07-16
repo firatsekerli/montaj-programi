@@ -129,11 +129,10 @@ simply has one tenant — no code difference.
 /packages
   /shared         → shared TS types, Zod/JSON-Schema definitions, rule types
   /rules          → the capacity rules engine (pure, testable, no I/O)
+  /web/messages   → Turkish UI strings (next-intl), e.g. tr.json
 /supabase
   /migrations     → SQL migrations (tables, PostGIS, RLS policies, pg_cron)
   /functions      → Edge Functions (if any)
-/messages
-  tr.json         → Turkish UI strings (next-intl)
 /apps/optimizer   → (later) Python OR-Tools service, deployed separately
 /docs             → these design documents
 ```

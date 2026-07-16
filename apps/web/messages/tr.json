@@ -1,0 +1,45 @@
+{
+  "app": {
+    "name": "Montaj Programı",
+    "tagline": "Evrensel saha montaj planlama sistemi"
+  },
+  "nav": {
+    "dashboard": "Panel",
+    "orders": "Siparişler",
+    "planning": "Planlama",
+    "teams": "Ekipler",
+    "assets": "Araçlar ve Ekipman",
+    "sites": "Şantiyeler",
+    "settings": "Ayarlar"
+  },
+  "home": {
+    "title": "Montaj Programı",
+    "subtitle": "Kurulum ekiplerinin kapasitesini ve planlamasını yönetin.",
+    "capacityDemoTitle": "Kapasite motoru — canlı örnek",
+    "capacityDemoNote": "Aşağıdaki değerler @montaj/rules motorundan hesaplanır; hiçbir kapı tipi koda gömülü değildir.",
+    "perDay": "adet/gün",
+    "normal": "Mesaisiz",
+    "overtime": "Mesaili",
+    "status": "Durum: Planlama aşaması — çekirdek kurulum tamamlandı."
+  },
+  "roles": {
+    "admin": "Yönetici",
+    "planner": "Planlamacı",
+    "ops": "Operasyon Sorumlusu",
+    "field": "Saha Ekibi"
+  },
+  "order": {
+    "status": {
+      "backlog": "Bekleyen",
+      "planned": "Planlandı",
+      "in_progress": "Devam ediyor",
+      "completed": "Tamamlandı",
+      "blocked": "Engellendi"
+    }
+  },
+  "common": {
+    "save": "Kaydet",
+    "cancel": "İptal",
+    "loading": "Yükleniyor..."
+  }
+}
