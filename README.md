@@ -48,8 +48,10 @@ What's in the repo now:
 - `apps/web` — Next.js (App Router) in **Turkish**:
   - **Supabase auth** (login, session middleware, route protection).
   - **Tenant-aware tRPC** (context resolves the user's tenant; `me` + capacity API).
-  - **Admin screens**: dashboard (live capacity from DB), Orders, Teams, Assets,
-    Sites (read), and **Kapı Tipleri** with full create/edit/delete.
+  - **Admin screens with full create/edit/delete** for every entity — Kapı
+    Tipleri, Siparişler (with line items + status lifecycle), Ekipler (members +
+    capabilities), Kişiler, Araçlar, Şantiyeler. Nothing is read-only.
+  - Dashboard with live capacity computed from DB rows.
   - Daily production-check cron route.
 - `supabase/migrations` — full schema (PostGIS + all core tables), Row-Level
   Security for multi-tenant isolation, the **Dimak seed** (`0003`), and auth

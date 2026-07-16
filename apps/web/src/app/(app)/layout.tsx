@@ -16,6 +16,7 @@ export default async function AppLayout({ children }: { children: ReactNode }) {
     { href: "/orders", label: t("orders") },
     { href: "/work-item-types", label: t("workItemTypes") },
     { href: "/teams", label: t("teams") },
+    { href: "/people", label: t("people") },
     { href: "/assets", label: t("assets") },
     { href: "/sites", label: t("sites") },
   ];

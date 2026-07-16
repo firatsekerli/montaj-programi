@@ -1,18 +1,28 @@
+import Link from "next/link";
 import { getTranslations } from "next-intl/server";
 import { createSupabaseServerClient } from "@/lib/supabase/server";
 import { one } from "@/lib/rel";
+import { deleteTeam } from "@/app/actions/teams";
 
 export default async function TeamsPage() {
   const t = await getTranslations("teams");
+  const tc = await getTranslations("crud");
   const supabase = await createSupabaseServerClient();
   const { data: rows } = await supabase
     .from("team")
-    .select("id, name, is_subcontractor, team_member(person(name)), team_capability(work_item_type(name))")
+    .select(
+      "id, name, is_subcontractor, team_member(person(name)), team_capability(work_item_type(name))",
+    )
     .order("preference_weight");
 
   return (
     <main>
-      <h1>{t("title")}</h1>
+      <div className="page-head">
+        <h1>{t("title")}</h1>
+        <Link className="btn" href="/teams/new">
+          {t("new")}
+        </Link>
+      </div>
       <p className="subtitle">{t("subtitle")}</p>
       <div className="panel">
         <table>
@@ -22,6 +32,7 @@ export default async function TeamsPage() {
               <th>{t("kind")}</th>
               <th>{t("members")}</th>
               <th>{t("capabilities")}</th>
+              <th />
             </tr>
           </thead>
           <tbody>
@@ -44,9 +55,24 @@ export default async function TeamsPage() {
                   </td>
                   <td>{members || "—"}</td>
                   <td className="muted-cell">{caps || "—"}</td>
+                  <td className="row-actions">
+                    <Link href={`/teams/${r.id}`}>{tc("edit")}</Link>
+                    <form action={deleteTeam.bind(null, r.id)}>
+                      <button type="submit" className="link-danger">
+                        {tc("delete")}
+                      </button>
+                    </form>
+                  </td>
                 </tr>
               );
             })}
+            {(!rows || rows.length === 0) && (
+              <tr>
+                <td colSpan={5} className="empty">
+                  {tc("empty")}
+                </td>
+              </tr>
+            )}
           </tbody>
         </table>
       </div>

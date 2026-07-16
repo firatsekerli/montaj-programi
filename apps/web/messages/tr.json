@@ -8,9 +8,26 @@
     "orders": "Siparişler",
     "workItemTypes": "Kapı Tipleri",
     "teams": "Ekipler",
+    "people": "Kişiler",
     "assets": "Araçlar ve Ekipman",
     "sites": "Şantiyeler",
     "signOut": "Çıkış Yap"
+  },
+  "crud": {
+    "new": "Yeni",
+    "edit": "Düzenle",
+    "delete": "Sil",
+    "save": "Kaydet",
+    "create": "Oluştur",
+    "cancel": "İptal",
+    "back": "Geri",
+    "add": "Ekle",
+    "remove": "Kaldır",
+    "none": "—",
+    "empty": "Kayıt bulunamadı.",
+    "actions": "İşlemler",
+    "select": "Seçiniz",
+    "yes": "Evet"
   },
   "auth": {
     "signInTitle": "Giriş Yap",
@@ -55,44 +72,80 @@
     "save": "Kaydet",
     "empty": "Henüz kapı tipi eklenmemiş."
   },
+  "sites": {
+    "title": "Şantiyeler",
+    "subtitle": "Montaj yapılan konumlar ve giriş süreleri.",
+    "new": "Yeni Şantiye",
+    "newTitle": "Yeni Şantiye",
+    "editTitle": "Şantiyeyi Düzenle",
+    "name": "Ad",
+    "accessOverhead": "Giriş Süresi",
+    "accessOverheadHelp": "Güvenlik/giriş için kaybedilen dakika (örn. Roketsan = 120)",
+    "min": "dk"
+  },
+  "people": {
+    "title": "Kişiler",
+    "subtitle": "Montaj personeli. Ekip üyeleri buradan seçilir.",
+    "new": "Yeni Kişi",
+    "newTitle": "Yeni Kişi",
+    "editTitle": "Kişiyi Düzenle",
+    "name": "Ad",
+    "isLead": "Ekip Başı",
+    "lead": "Ekip Başı",
+    "member": "Üye"
+  },
   "teams": {
     "title": "Ekipler",
     "subtitle": "Montaj ekipleri, üyeleri ve monte edebildikleri tipler.",
+    "new": "Yeni Ekip",
+    "newTitle": "Yeni Ekip",
+    "editTitle": "Ekibi Düzenle",
     "name": "Ekip",
     "kind": "Tür",
     "members": "Üyeler",
     "capabilities": "Yetkinlikler",
     "subcontractor": "Taşeron",
-    "inHouse": "Kendi Ekibimiz"
+    "inHouse": "Kendi Ekibimiz",
+    "isSubcontractor": "Taşeron mu?",
+    "preference": "Öncelik ağırlığı (düşük = tercih edilir)",
+    "baseLocation": "Başlangıç konumu"
   },
   "assets": {
     "title": "Araçlar ve Ekipman",
     "subtitle": "Filo ve ekipman — taşıma kapasitesi ve konum takibi.",
+    "new": "Yeni Araç/Ekipman",
+    "newTitle": "Yeni Araç/Ekipman",
+    "editTitle": "Araç/Ekipmanı Düzenle",
     "name": "Ad",
     "kind": "Tür",
     "tracked": "Konum Takibi",
+    "tracksLocation": "Konumu takip edilsin mi? (örn. sepet)",
     "location": "Mevcut Konum",
     "vehicle": "Araç",
     "equipment": "Ekipman",
     "yes": "Evet"
   },
-  "sites": {
-    "title": "Şantiyeler",
-    "subtitle": "Montaj yapılan konumlar ve giriş süreleri.",
-    "name": "Ad",
-    "accessOverhead": "Giriş Süresi",
-    "min": "dk"
-  },
   "orders": {
     "title": "Siparişler",
     "subtitle": "Sipariş listesi — öncelik sipariş tarihine göredir.",
+    "new": "Yeni Sipariş",
+    "newTitle": "Yeni Sipariş",
+    "editTitle": "Siparişi Düzenle",
     "code": "Sipariş No",
     "site": "Şantiye",
     "orderDate": "Sipariş Tarihi",
-    "productionReady": "Üretim Hazır",
+    "productionReady": "Üretim Hazır Tarihi",
+    "productionReadyHelp": "Boş bırakılırsa sipariş tarihinden 7 hafta sonrası kullanılır.",
     "items": "Kalemler",
     "statusCol": "Durum",
-    "demolition": "Kırım/Sökme"
+    "status": "Durum",
+    "demolition": "Kırım/Sökme",
+    "requiresDemolition": "Kapı sökme / duvar kırma var mı?",
+    "lines": "Sipariş Kalemleri",
+    "addLine": "Kalem Ekle",
+    "type": "Kapı Tipi",
+    "quantity": "Adet",
+    "noLines": "En az bir kalem ekleyin."
   },
   "order": {
     "status": {

@@ -36,13 +36,17 @@ Dimak dataset is the running acceptance test throughout.
 **Demo:** "for team X on an overtime day at site Y, capacity = N," proven by
 tests.
 
-## M3 — Orders & backlog
+## M3 — Orders & backlog ✅ (+ full CRUD for all config entities)
 
-- Order/order-line entry with custom attributes; production-ready default
-  (order + 7 weeks); demolition flag; status lifecycle.
-- Backlog view sorted by priority.
+- Order/order-line entry; production-ready default (order + 7 weeks); demolition
+  flag; **status lifecycle** (backlog→planned→in_progress→completed→blocked)
+  editable inline and in the form.
+- Backlog view sorted by order date.
+- **Gap closed:** create/edit/delete for Sites, People, Teams (with member +
+  capability selection), Assets, and Kapı Tipleri — the whole company is now
+  editable from the UI, all RLS-scoped.
 
-**Demo:** load orders, see prioritized backlog.
+**Demo:** add a site, a person, a team, a door type, and an order end-to-end.
 
 ## M4 — Routing & travel time
 

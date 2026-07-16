@@ -1,9 +1,12 @@
+import Link from "next/link";
 import { getTranslations } from "next-intl/server";
 import { createSupabaseServerClient } from "@/lib/supabase/server";
 import { one } from "@/lib/rel";
+import { deleteAsset } from "@/app/actions/assets";
 
 export default async function AssetsPage() {
   const t = await getTranslations("assets");
+  const tc = await getTranslations("crud");
   const supabase = await createSupabaseServerClient();
   const { data: rows } = await supabase
     .from("asset")
@@ -12,7 +15,12 @@ export default async function AssetsPage() {
 
   return (
     <main>
-      <h1>{t("title")}</h1>
+      <div className="page-head">
+        <h1>{t("title")}</h1>
+        <Link className="btn" href="/assets/new">
+          {t("new")}
+        </Link>
+      </div>
       <p className="subtitle">{t("subtitle")}</p>
       <div className="panel">
         <table>
@@ -22,6 +30,7 @@ export default async function AssetsPage() {
               <th>{t("kind")}</th>
               <th>{t("tracked")}</th>
               <th>{t("location")}</th>
+              <th />
             </tr>
           </thead>
           <tbody>
@@ -33,9 +42,24 @@ export default async function AssetsPage() {
                   <td>{r.kind === "vehicle" ? t("vehicle") : t("equipment")}</td>
                   <td>{r.tracks_location ? t("yes") : "—"}</td>
                   <td className="muted-cell">{loc?.name ?? "—"}</td>
+                  <td className="row-actions">
+                    <Link href={`/assets/${r.id}`}>{tc("edit")}</Link>
+                    <form action={deleteAsset.bind(null, r.id)}>
+                      <button type="submit" className="link-danger">
+                        {tc("delete")}
+                      </button>
+                    </form>
+                  </td>
                 </tr>
               );
             })}
+            {(!rows || rows.length === 0) && (
+              <tr>
+                <td colSpan={5} className="empty">
+                  {tc("empty")}
+                </td>
+              </tr>
+            )}
           </tbody>
         </table>
       </div>
