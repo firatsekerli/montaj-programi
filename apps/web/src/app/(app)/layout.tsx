@@ -13,6 +13,7 @@ export default async function AppLayout({ children }: { children: ReactNode }) {
 
   const links = [
     { href: "/", label: t("dashboard") },
+    { href: "/planning", label: t("planning") },
     { href: "/orders", label: t("orders") },
     { href: "/work-item-types", label: t("workItemTypes") },
     { href: "/teams", label: t("teams") },

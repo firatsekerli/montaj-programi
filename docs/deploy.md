@@ -71,14 +71,20 @@ After `0001` and `0002`, run the remaining migrations and create a login:
    (loads the Dimak tenant: door types, rules, teams, fleet, sites, a little backlog).
 2. **SQL Editor** → run [`supabase/migrations/0004_auth.sql`](../supabase/migrations/0004_auth.sql)
    (creates the signup→profile trigger, grants, and auto-attaches new users to Dimak as admin).
-3. **Create your user:** Authentication → **Users → Add user** → enter email + password
+3. **SQL Editor** → run [`supabase/migrations/0005_travel.sql`](../supabase/migrations/0005_travel.sql)
+   (adds the `travel_estimates()` function the planner uses for travel time).
+4. **Create your user:** Authentication → **Users → Add user** → enter email + password
    and tick **Auto Confirm User**. The trigger links you to the Dimak tenant automatically.
 4. **Recommended:** Authentication → Providers → Email → turn **off** "Allow new users to
    sign up", so only users you create in the dashboard can log in (the auto-attach is a
    single-org convenience until per-tenant invites land).
 
 Then log in at `https://YOUR-APP.vercel.app/login` and you'll land on the dashboard with
-the seeded Dimak data — Orders, Kapı Tipleri (create/edit/delete), Teams, Assets, Sites.
+the seeded Dimak data. Open **Planlama → Planı Oluştur** to generate a weekly plan and
+drag the cards between teams/days.
+
+> Re-running: `0003`/`0004` are safe to re-run (idempotent). `0005` just replaces a
+> function. If you seeded before this milestone, run `0005` now.
 
 ## Part C — See it
 

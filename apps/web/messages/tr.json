@@ -5,6 +5,7 @@
   },
   "nav": {
     "dashboard": "Panel",
+    "planning": "Planlama",
     "orders": "Siparişler",
     "workItemTypes": "Kapı Tipleri",
     "teams": "Ekipler",
@@ -146,6 +147,19 @@
     "type": "Kapı Tipi",
     "quantity": "Adet",
     "noLines": "En az bir kalem ekleyin."
+  },
+  "planning": {
+    "title": "Planlama",
+    "subtitle": "Bekleyen siparişleri ekiplere ve günlere dağıtın. Kartları sürükleyerek planı düzenleyin.",
+    "generate": "Planı Oluştur",
+    "regenerate": "Yeniden Oluştur",
+    "generating": "Oluşturuluyor...",
+    "clear": "Temizle",
+    "prevWeek": "Önceki hafta",
+    "nextWeek": "Sonraki hafta",
+    "noPlan": "Bu hafta için henüz plan oluşturulmadı. \"Planı Oluştur\" ile başlayın.",
+    "noTeams": "Önce en az bir ekip ekleyin.",
+    "dayShare": "{pct}% gün"
   },
   "order": {
     "status": {

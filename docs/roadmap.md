@@ -48,21 +48,29 @@ tests.
 
 **Demo:** add a site, a person, a team, a door type, and an order end-to-end.
 
-## M4 — Routing & travel time
+## M4 — Routing & travel time ✅
 
-- Routing service integration (OSRM/Valhalla or Mapbox), travel-matrix cache,
-  site access overhead.
-- Map panel showing sites and base.
+- `travel_estimates()` PostGIS function: great-circle distance base→site,
+  converted to round-trip minutes; folded into the day budget alongside the
+  site access overhead. Behind a swappable interface (OpenRouteService upgrade
+  later). Straight-line for now; no external API needed.
 
-**Demo:** "Kırıkkale is 90 min from the factory → capacity drops accordingly."
+**Demo:** a far site eats into the day → fewer units fit (proven in scheduler tests).
 
-## M5 — Scheduler + planning board (the core value)
+## M5 — Scheduler + planning board (the core value) ✅
 
-- Heuristic scheduler (`docs/scheduling-engine.md`).
-- Day × team drag-drop board with live re-validation, overtime toggle,
-  geographic batching, asset commitment.
+- Pure heuristic scheduler in `packages/rules` (multi-day split, capability
+  match, production-readiness gate, travel/access, in-house preference), with
+  unit tests.
+- **Planlama** page: generate a weekly plan, then a day × team **drag-drop
+  board** (dnd-kit) with per-cell capacity usage bars, over-capacity warnings,
+  live cost recompute on move, and week navigation.
 
-**Demo:** backlog → proposed weekly plan; drag to adjust; violations flagged.
+**Demo:** backlog → proposed weekly plan; drag a card to another team/day and
+watch the usage bars update.
+
+**Not yet (M5.x):** overtime toggle per day, asset commitment on the board,
+leave/availability in headcount, and geographic same-day batching of short jobs.
 
 ## M6 — Execution & tracking
 

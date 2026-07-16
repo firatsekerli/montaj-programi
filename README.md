@@ -41,9 +41,10 @@ full-stack on free managed services (Vercel + Supabase)**, **Turkish UI** (via
 
 What's in the repo now:
 
-- `packages/rules` — the pure capacity engine, with **13 passing tests** that
-  reproduce the exact numbers from the Dimak spec (7/day, oversize −20%,
-  demolition −50%, overtime, team-of-3, travel/access deductions).
+- `packages/rules` — the pure capacity **and scheduling** engine, with **18
+  passing tests**: the Dimak capacity numbers (7/day, oversize −20%, demolition
+  −50%, overtime, team-of-3, travel/access) plus the scheduler heuristic
+  (multi-day split, travel, production-readiness, in-house preference).
 - `packages/shared` — shared Zod schemas/types.
 - `apps/web` — Next.js (App Router) in **Turkish**:
   - **Supabase auth** (login, session middleware, route protection).
@@ -52,7 +53,12 @@ What's in the repo now:
     Tipleri, Siparişler (with line items + status lifecycle), Ekipler (members +
     capabilities), Kişiler, Araçlar, Şantiyeler. Nothing is read-only.
   - Dashboard with live capacity computed from DB rows.
+  - **Planlama** — a drag-drop weekly board: generate a plan (scheduler assigns
+    the backlog to teams/days using capacity + travel time), then drag cards
+    between teams/days with live cost recompute and over-capacity warnings.
   - Daily production-check cron route.
+- `supabase/migrations` — schema, RLS, Dimak seed, auth, and `0005` travel-time
+  (`travel_estimates()` via PostGIS).
 - `supabase/migrations` — full schema (PostGIS + all core tables), Row-Level
   Security for multi-tenant isolation, the **Dimak seed** (`0003`), and auth
   wiring/grants (`0004`).

@@ -327,6 +327,109 @@ label.checkbox input {
   font-size: 0.85rem;
 }
 
+/* ---- Planning board ---- */
+.plan-controls {
+  display: flex;
+  gap: 0.5rem;
+}
+.week-nav {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 1rem;
+  margin: 0.5rem 0 1rem;
+  font-size: 0.95rem;
+}
+.board-scroll {
+  overflow-x: auto;
+  padding-bottom: 0.5rem;
+}
+.board {
+  display: grid;
+  gap: 1px;
+  background: var(--border);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  overflow: hidden;
+  min-width: 720px;
+}
+.board-cell {
+  background: var(--panel);
+  padding: 0.5rem;
+  min-height: 56px;
+}
+.board-cell.head {
+  background: var(--panel-2);
+  font-size: 0.8rem;
+  color: var(--muted);
+  text-align: center;
+  min-height: 0;
+  font-weight: 600;
+}
+.board-cell.team-col {
+  background: var(--panel-2);
+  font-weight: 600;
+  display: flex;
+  align-items: center;
+}
+.board-cell.drop {
+  display: flex;
+  flex-direction: column;
+  gap: 0.3rem;
+}
+.board-cell.drop.over {
+  outline: 2px dashed var(--accent);
+  outline-offset: -2px;
+}
+.usage {
+  position: relative;
+  height: 5px;
+  background: var(--panel-2);
+  border-radius: 3px;
+  margin-bottom: 0.15rem;
+}
+.usage-bar {
+  height: 100%;
+  background: var(--accent);
+  border-radius: 3px;
+}
+.usage-bar.over-cap {
+  background: var(--danger);
+}
+.usage-pct {
+  position: absolute;
+  top: -1px;
+  inset-inline-end: 0;
+  font-size: 0.65rem;
+  color: var(--muted);
+}
+.card-plan {
+  background: var(--panel-2);
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  padding: 0.35rem 0.5rem;
+  display: flex;
+  flex-direction: column;
+  gap: 0.1rem;
+  cursor: grab;
+  font-size: 0.8rem;
+  touch-action: none;
+}
+.card-plan:active {
+  cursor: grabbing;
+}
+.card-plan.dragging {
+  opacity: 0.85;
+  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.4);
+}
+.card-plan .card-line {
+  color: var(--text);
+}
+.card-plan .card-cost {
+  color: var(--muted);
+  font-size: 0.72rem;
+}
+
 /* ---- Auth ---- */
 .auth {
   display: grid;
