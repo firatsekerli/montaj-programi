@@ -179,16 +179,16 @@ begin
     (v_sepet, v_kamyonet, 'Sepet Kamyonet''e bağlanır');
 
   -- A little backlog so the Orders screen has content ------------------------
-  insert into work_order (tenant_id, code, site_id, order_date, production_ready_date,
+  insert into work_order (tenant_id, code, site_id, order_date, delivery_date,
       requires_demolition, status)
-    values (v_tenant, 'SIP-1001', v_genel, current_date - 30, current_date - 30 + 49, false, 'backlog')
+    values (v_tenant, 'SIP-1001', v_genel, current_date - 30, current_date + 21, false, 'backlog')
     returning id into v_order1;
   insert into order_line (tenant_id, order_id, work_item_type_id, quantity)
     values (v_tenant, v_order1, v_full_single, 12);
 
-  insert into work_order (tenant_id, code, site_id, order_date, production_ready_date,
+  insert into work_order (tenant_id, code, site_id, order_date, delivery_date,
       requires_demolition, status)
-    values (v_tenant, 'SIP-1002', v_roketsan, current_date - 20, current_date - 20 + 49, true, 'backlog')
+    values (v_tenant, 'SIP-1002', v_roketsan, current_date - 20, current_date + 35, true, 'backlog')
     returning id into v_order2;
   insert into order_line (tenant_id, order_id, work_item_type_id, quantity, attributes)
     values (v_tenant, v_order2, v_industrial, 2, '{"area_m2":25}');

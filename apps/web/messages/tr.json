@@ -6,6 +6,7 @@
   "nav": {
     "dashboard": "Panel",
     "planning": "Planlama",
+    "notifications": "Bildirimler",
     "orders": "Siparişler",
     "workItemTypes": "Kapı Tipleri",
     "teams": "Ekipler",
@@ -135,8 +136,10 @@
     "code": "Sipariş No",
     "site": "Şantiye",
     "orderDate": "Sipariş Tarihi",
-    "productionReady": "Üretim Hazır Tarihi",
-    "productionReadyHelp": "Boş bırakılırsa sipariş tarihinden 7 hafta sonrası kullanılır.",
+    "deliveryDate": "Teslim Tarihi",
+    "deliveryDateHelp": "Montajın tamamlanması gereken tarih. Üretim tamamlanma tarihi buna göre geriye doğru hesaplanır.",
+    "productionDue": "Üretim Tamamlanma",
+    "productionDueInfo": "Üretim {date} tarihine kadar tamamlanmalı (hesaplanan).",
     "items": "Kalemler",
     "statusCol": "Durum",
     "status": "Durum",
@@ -164,10 +167,18 @@
     "unplacedTitle": "Planlanamayan siparişler",
     "unplacedNote": "Aşağıdaki kalemler bu haftaya yerleştirilemedi:",
     "unitsShort": "adet",
-    "reasonNotReady": "Üretim hazır değil",
-    "reasonNotReadyDate": "Üretim {date} tarihinde hazır",
+    "reasonNotReady": "Ufuk dışında / üretim tarihi ileride",
+    "reasonPastDeadline": "Teslim tarihi geçmiş ({date})",
     "reasonNoTeam": "Yetkin ekip yok",
-    "reasonNoCapacity": "Bu hafta kapasite yetmedi"
+    "reasonNoCapacity": "Kapasite yetmedi (teslim tarihine yetişmiyor)"
+  },
+  "notifications": {
+    "title": "Bildirimler",
+    "subtitle": "Operasyon bildirimleri — üretimin tamamlanması gereken tarihler.",
+    "order": "Sipariş",
+    "due": "Son Tarih",
+    "message": "Mesaj",
+    "empty": "Açık bildirim yok."
   },
   "order": {
     "status": {

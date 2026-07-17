@@ -1,14 +1,18 @@
 import { describe, expect, it } from "vitest";
-import { schedule, type ScheduleItem, type ScheduleTeam } from "../src/index";
-import { dimakRules, dimakShift, fullFrameSingleFire } from "./dimak.fixtures";
+import { schedule, type ScheduleOrder, type ScheduleTeam } from "../src/index";
+import { dimakRules, dimakShift, fullFrameSingleFire, industrialDoor } from "./dimak.fixtures";
 
-const WEEK = ["2026-01-05", "2026-01-06", "2026-01-07", "2026-01-08", "2026-01-09"]; // Mon–Fri
+// Two weeks of Mon–Fri working days.
+const HORIZON = [
+  "2026-01-05", "2026-01-06", "2026-01-07", "2026-01-08", "2026-01-09",
+  "2026-01-12", "2026-01-13", "2026-01-14", "2026-01-15", "2026-01-16",
+];
 
 function team(overrides: Partial<ScheduleTeam> = {}): ScheduleTeam {
   return {
     id: "team-1",
     name: "Team 1",
-    headcount: 2, // avoid the 3-person +1.5 rule so the rate stays 7
+    headcount: 2,
     isSubcontractor: false,
     preferenceWeight: 10,
     capableTypeIds: [fullFrameSingleFire.id],
@@ -17,110 +21,125 @@ function team(overrides: Partial<ScheduleTeam> = {}): ScheduleTeam {
   };
 }
 
-function item(overrides: Partial<ScheduleItem> = {}): ScheduleItem {
+function order(overrides: Partial<ScheduleOrder> = {}): ScheduleOrder {
   return {
-    orderLineId: "line-1",
-    orderId: "order-1",
+    orderId: "o1",
     orderCode: "SIP-1001",
     siteId: "site-1",
     accessOverheadMinutes: 0,
-    type: fullFrameSingleFire,
-    quantity: 12,
-    facts: {},
-    productionReadyDate: null,
-    priority: 1,
+    lines: [{ orderLineId: "l1", type: fullFrameSingleFire, quantity: 12, facts: {} }],
+    earliestDate: "2026-01-05",
+    deliveryDate: "2026-01-16",
     ...overrides,
   };
 }
 
-describe("scheduler", () => {
-  it("splits a 12-door line across days at 7/day (7 then 5)", () => {
+describe("delivery-driven scheduler", () => {
+  it("schedules an order within its delivery window (7/day → 12 = 2 days)", () => {
     const { assignments, unplaced } = schedule({
-      weekDays: WEEK,
+      workingDays: HORIZON,
       shift: dimakShift,
       rules: dimakRules,
       teams: [team()],
-      items: [item()],
+      orders: [order()],
     });
     expect(unplaced).toHaveLength(0);
-    expect(assignments).toHaveLength(2);
-    expect(assignments[0]).toMatchObject({ date: WEEK[0], units: 7 });
-    expect(assignments[1]).toMatchObject({ date: WEEK[1], units: 5 });
     expect(assignments.reduce((s, a) => s + a.units, 0)).toBe(12);
+    // stays on one team
+    expect(new Set(assignments.map((a) => a.teamId)).size).toBe(1);
+    // all inside the window
+    expect(assignments.every((a) => a.date >= "2026-01-05" && a.date <= "2026-01-16")).toBe(true);
   });
 
-  it("travel time reduces how many fit on the first day", () => {
-    // 90 min round trip on a 9h day => 0.1667 overhead; 7 doors, unit=1/7.
-    // day1 fits floor((1-0.1667)/0.1429)=5, day2 the remaining 2.
+  it("keeps one team per site when a single team is capable of all lines", () => {
+    // SIP-1002: industrial + fire, Kazım can do both; Erkan only fire.
+    const kazim = team({
+      id: "kazim",
+      capableTypeIds: [industrialDoor.id, fullFrameSingleFire.id],
+    });
+    const erkan = team({ id: "erkan", capableTypeIds: [fullFrameSingleFire.id] });
     const { assignments } = schedule({
-      weekDays: WEEK,
+      workingDays: HORIZON,
       shift: dimakShift,
       rules: dimakRules,
-      teams: [team({ travelMinutesToSite: { "site-1": 90 } })],
-      items: [item({ quantity: 7 })],
+      teams: [erkan, kazim],
+      orders: [
+        order({
+          orderCode: "SIP-1002",
+          lines: [
+            { orderLineId: "ind", type: industrialDoor, quantity: 1, facts: { "line.area_m2": 25 } },
+            { orderLineId: "fire", type: fullFrameSingleFire, quantity: 3, facts: {} },
+          ],
+        }),
+      ],
     });
-    expect(assignments[0]).toMatchObject({ date: WEEK[0], units: 5 });
-    expect(assignments[1]).toMatchObject({ date: WEEK[1], units: 2 });
+    // whole order handled by the one team capable of both types
+    expect(new Set(assignments.map((a) => a.teamId))).toEqual(new Set(["kazim"]));
   });
 
-  it("marks items unplaced when no team has the capability", () => {
-    const { assignments, unplaced } = schedule({
-      weekDays: WEEK,
-      shift: dimakShift,
-      rules: dimakRules,
-      teams: [team({ capableTypeIds: ["some-other-type"] })],
-      items: [item({ quantity: 3 })],
-    });
-    expect(assignments).toHaveLength(0);
-    expect(unplaced[0]).toMatchObject({ reason: "no_team", remaining: 3 });
-  });
-
-  it("does not schedule before production is ready", () => {
-    const { assignments, unplaced } = schedule({
-      weekDays: WEEK,
+  it("does NOT plan before the earliest (production-due) date", () => {
+    const { assignments } = schedule({
+      workingDays: HORIZON,
       shift: dimakShift,
       rules: dimakRules,
       teams: [team()],
-      items: [item({ quantity: 5, productionReadyDate: "2026-02-01" })],
+      orders: [order({ earliestDate: "2026-01-12" })],
     });
-    expect(assignments).toHaveLength(0);
-    expect(unplaced[0]).toMatchObject({ reason: "not_ready" });
+    expect(assignments.every((a) => a.date >= "2026-01-12")).toBe(true);
   });
 
-  it("spreads work across capable teams instead of overloading one", () => {
-    // Two fire-capable teams. A fills up on item1; item2 must go to the idle B.
+  it("spills to a second team only under deadline pressure", () => {
+    // 60 fire doors due in one week: one team (7/day×5=35) can't finish → 2nd team.
     const a = team({ id: "A" });
     const b = team({ id: "B" });
+    const week1 = HORIZON.slice(0, 5);
     const { assignments, unplaced } = schedule({
-      weekDays: WEEK,
+      workingDays: HORIZON,
       shift: dimakShift,
       rules: dimakRules,
       teams: [a, b],
-      items: [
-        item({ orderLineId: "l1", orderCode: "SIP-A", quantity: 35, priority: 1 }), // 7/day × 5 = fills A
-        item({ orderLineId: "l2", orderCode: "SIP-B", quantity: 5, priority: 2 }),
+      orders: [
+        order({
+          lines: [{ orderLineId: "l1", type: fullFrameSingleFire, quantity: 60, facts: {} }],
+          earliestDate: week1[0]!,
+          deliveryDate: week1[week1.length - 1]!,
+        }),
       ],
     });
+    expect(new Set(assignments.map((x) => x.teamId))).toEqual(new Set(["A", "B"]));
+    // 2 teams × 35/week = 70 capacity ≥ 60 → nothing unplaced
     expect(unplaced).toHaveLength(0);
-    const teamsUsed = new Set(assignments.map((x) => x.teamId));
-    expect(teamsUsed.has("A")).toBe(true);
-    expect(teamsUsed.has("B")).toBe(true);
-    // item2 should land entirely on the less-loaded team B
-    expect(assignments.filter((x) => x.orderLineId === "l2").every((x) => x.teamId === "B")).toBe(
-      true,
-    );
   });
 
-  it("prefers in-house (lower weight) over subcontractor", () => {
-    const inhouse = team({ id: "in", preferenceWeight: 10 });
-    const sub = team({ id: "sub", preferenceWeight: 100, isSubcontractor: true });
-    const { assignments } = schedule({
-      weekDays: WEEK,
+  it("flags orders that can't finish by their deadline", () => {
+    // 100 doors due in one week; even 1 team over 5 days = 35 → rest unplaced.
+    const week1 = HORIZON.slice(0, 5);
+    const { unplaced } = schedule({
+      workingDays: HORIZON,
       shift: dimakShift,
       rules: dimakRules,
-      teams: [sub, inhouse],
-      items: [item({ quantity: 3 })],
+      teams: [team()],
+      orders: [
+        order({
+          lines: [{ orderLineId: "l1", type: fullFrameSingleFire, quantity: 100, facts: {} }],
+          earliestDate: week1[0]!,
+          deliveryDate: week1[week1.length - 1]!,
+        }),
+      ],
     });
-    expect(assignments.every((a) => a.teamId === "in")).toBe(true);
+    expect(unplaced.some((x) => x.reason === "no_capacity")).toBe(true);
+  });
+
+  it("respects committed load from started jobs (no double-booking)", () => {
+    // team fully committed on day 1 → order starts day 2.
+    const { assignments } = schedule({
+      workingDays: HORIZON,
+      shift: dimakShift,
+      rules: dimakRules,
+      teams: [team()],
+      orders: [order({ lines: [{ orderLineId: "l1", type: fullFrameSingleFire, quantity: 7, facts: {} }] })],
+      committed: [{ teamId: "team-1", date: "2026-01-05", cost: 1 }],
+    });
+    expect(assignments.every((a) => a.date >= "2026-01-06")).toBe(true);
   });
 });

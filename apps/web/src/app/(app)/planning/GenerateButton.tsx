@@ -5,7 +5,7 @@ import { useRouter } from "next/navigation";
 import { useTranslations } from "next-intl";
 import { clearPlan, generatePlan } from "@/app/actions/planning";
 
-export function GenerateButton({ weekStart, hasPlan }: { weekStart: string; hasPlan: boolean }) {
+export function GenerateButton({ hasPlan }: { hasPlan: boolean }) {
   const t = useTranslations("planning");
   const [pending, startTransition] = useTransition();
   const [error, setError] = useState<string | null>(null);
@@ -26,11 +26,11 @@ export function GenerateButton({ weekStart, hasPlan }: { weekStart: string; hasP
   return (
     <div className="plan-controls">
       {error && <span className="error">{error}</span>}
-      <button className="btn" disabled={pending} onClick={() => run(() => generatePlan(weekStart))}>
+      <button className="btn" disabled={pending} onClick={() => run(() => generatePlan())}>
         {pending ? t("generating") : hasPlan ? t("regenerate") : t("generate")}
       </button>
       {hasPlan && (
-        <button className="btn-ghost" disabled={pending} onClick={() => run(() => clearPlan(weekStart))}>
+        <button className="btn-ghost" disabled={pending} onClick={() => run(() => clearPlan())}>
           {t("clear")}
         </button>
       )}

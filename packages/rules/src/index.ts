@@ -13,7 +13,9 @@ export {
 export { schedule } from "./scheduler";
 export type {
   ScheduleTeam,
-  ScheduleItem,
+  ScheduleLine,
+  ScheduleOrder,
+  CommittedLoad,
   ScheduleInput,
   ScheduleOutput,
   PlannedAssignment,

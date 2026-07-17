@@ -13,9 +13,9 @@ export default async function OrdersPage() {
   const { data: rows } = await supabase
     .from("work_order")
     .select(
-      "id, code, order_date, production_ready_date, status, requires_demolition, site:site_id(name), order_line(quantity, work_item_type(name))",
+      "id, code, order_date, delivery_date, production_ready_date, status, requires_demolition, site:site_id(name), order_line(quantity, work_item_type(name))",
     )
-    .order("order_date");
+    .order("delivery_date", { nullsFirst: false });
 
   return (
     <main>
@@ -33,7 +33,8 @@ export default async function OrdersPage() {
               <th>{t("code")}</th>
               <th>{t("site")}</th>
               <th>{t("orderDate")}</th>
-              <th>{t("productionReady")}</th>
+              <th>{t("deliveryDate")}</th>
+              <th>{t("productionDue")}</th>
               <th>{t("items")}</th>
               <th>{t("statusCol")}</th>
               <th />
@@ -51,6 +52,11 @@ export default async function OrdersPage() {
                   <td>{site?.name ?? "—"}</td>
                   <td>{format.dateTime(new Date(r.order_date), { dateStyle: "medium" })}</td>
                   <td>
+                    {r.delivery_date
+                      ? format.dateTime(new Date(r.delivery_date), { dateStyle: "medium" })
+                      : "—"}
+                  </td>
+                  <td className="muted-cell">
                     {r.production_ready_date
                       ? format.dateTime(new Date(r.production_ready_date), { dateStyle: "medium" })
                       : "—"}

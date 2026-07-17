@@ -12,6 +12,13 @@ function shiftWeek(weekStart: string, deltaDays: number): string {
   return d.toISOString().slice(0, 10);
 }
 
+interface Unplaced {
+  orderCode: string;
+  remaining: number;
+  reason: "no_team" | "not_ready" | "past_deadline" | "no_capacity";
+  deliveryDate: string | null;
+}
+
 export default async function PlanningPage({
   searchParams,
 }: {
@@ -20,21 +27,16 @@ export default async function PlanningPage({
   const { week } = await searchParams;
   const weekStart = week && /^\d{4}-\d{2}-\d{2}$/.test(week) ? week : mondayOf(new Date());
   const weekDays = weekDaysFrom(weekStart, 5);
+  const weekEnd = weekDays[weekDays.length - 1]!;
   const t = await getTranslations("planning");
   const format = await getFormatter();
   const supabase = await createSupabaseServerClient();
 
   const [{ data: teams }, { data: plan }] = await Promise.all([
     supabase.from("team").select("id, name").order("preference_weight"),
-    supabase.from("plan").select("id, unplaced").eq("date_from", weekStart).maybeSingle(),
+    supabase.from("plan").select("id, unplaced").limit(1).maybeSingle(),
   ]);
 
-  interface Unplaced {
-    orderCode: string;
-    remaining: number;
-    reason: "no_team" | "not_ready" | "no_capacity";
-    readyDate: string | null;
-  }
   const unplaced: Unplaced[] = (plan?.unplaced as Unplaced[] | undefined) ?? [];
 
   let assignments: BoardAssignment[] = [];
@@ -44,7 +46,9 @@ export default async function PlanningPage({
       .select(
         "id, team_id, assign_date, units, estimated_cost, work_order:order_id(code), order_line:order_line_id(work_item_type:work_item_type_id(name))",
       )
-      .eq("plan_id", plan.id);
+      .eq("plan_id", plan.id)
+      .gte("assign_date", weekStart)
+      .lte("assign_date", weekEnd);
     assignments = (data ?? []).map((a) => {
       const wit = one<{ name: string }>(one<{ work_item_type: unknown }>(a.order_line)?.work_item_type);
       return {
@@ -63,7 +67,7 @@ export default async function PlanningPage({
     <main>
       <div className="page-head">
         <h1>{t("title")}</h1>
-        <GenerateButton weekStart={weekStart} hasPlan={Boolean(plan)} />
+        <GenerateButton hasPlan={Boolean(plan)} />
       </div>
       <p className="subtitle">{t("subtitle")}</p>
 
@@ -71,10 +75,7 @@ export default async function PlanningPage({
         <Link href={`/planning?week=${shiftWeek(weekStart, -7)}`}>← {t("prevWeek")}</Link>
         <strong>
           {format.dateTime(new Date(`${weekStart}T00:00:00`), { day: "numeric", month: "long" })} —{" "}
-          {format.dateTime(new Date(`${weekDays[weekDays.length - 1]}T00:00:00`), {
-            day: "numeric",
-            month: "long",
-          })}
+          {format.dateTime(new Date(`${weekEnd}T00:00:00`), { day: "numeric", month: "long" })}
         </strong>
         <Link href={`/planning?week=${shiftWeek(weekStart, 7)}`}>{t("nextWeek")} →</Link>
       </div>
@@ -91,24 +92,26 @@ export default async function PlanningPage({
           <h2>{t("unplacedTitle")}</h2>
           <p className="note">{t("unplacedNote")}</p>
           <ul className="unplaced-list">
-            {unplaced.map((u, i) => (
-              <li key={`${u.orderCode}-${i}`}>
-                <span className="mono">{u.orderCode}</span>
+            {unplaced.map((uu, i) => (
+              <li key={`${uu.orderCode}-${i}`}>
+                <span className="mono">{uu.orderCode}</span>
                 <span className="muted-cell">
-                  {u.remaining} {t("unitsShort")}
+                  {uu.remaining} {t("unitsShort")}
                 </span>
                 <span className="badge sub">
-                  {u.reason === "not_ready"
-                    ? u.readyDate
-                      ? t("reasonNotReadyDate", {
-                          date: format.dateTime(new Date(`${u.readyDate}T00:00:00`), {
-                            dateStyle: "medium",
-                          }),
-                        })
-                      : t("reasonNotReady")
-                    : u.reason === "no_team"
-                      ? t("reasonNoTeam")
-                      : t("reasonNoCapacity")}
+                  {uu.reason === "not_ready"
+                    ? t("reasonNotReady")
+                    : uu.reason === "past_deadline"
+                      ? uu.deliveryDate
+                        ? t("reasonPastDeadline", {
+                            date: format.dateTime(new Date(`${uu.deliveryDate}T00:00:00`), {
+                              dateStyle: "medium",
+                            }),
+                          })
+                        : t("reasonNotReady")
+                      : uu.reason === "no_team"
+                        ? t("reasonNoTeam")
+                        : t("reasonNoCapacity")}
                 </span>
               </li>
             ))}

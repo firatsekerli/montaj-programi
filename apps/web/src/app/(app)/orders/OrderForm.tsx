@@ -28,7 +28,8 @@ export function OrderForm({
     code?: string;
     siteId?: string;
     orderDate?: string;
-    productionReadyDate?: string;
+    deliveryDate?: string;
+    productionDue?: string;
     requiresDemolition?: boolean;
     productionConfirmed?: boolean;
     status?: string;
@@ -84,15 +85,14 @@ export function OrderForm({
           <input name="order_date" type="date" defaultValue={defaults.orderDate} required />
         </label>
         <label>
-          {t("productionReady")}
-          <input
-            name="production_ready_date"
-            type="date"
-            defaultValue={defaults.productionReadyDate}
-          />
+          {t("deliveryDate")}
+          <input name="delivery_date" type="date" defaultValue={defaults.deliveryDate} required />
         </label>
       </div>
-      <span className="help">{t("productionReadyHelp")}</span>
+      <span className="help">{t("deliveryDateHelp")}</span>
+      {defaults.productionDue && (
+        <p className="note">{t("productionDueInfo", { date: defaults.productionDue })}</p>
+      )}
 
       <label>
         {t("status")}
