@@ -310,6 +310,12 @@ label.checkbox input {
   gap: 0.5rem;
   align-items: center;
 }
+.clause-row {
+  display: grid;
+  grid-template-columns: 1fr 80px 1fr 32px;
+  gap: 0.5rem;
+  align-items: center;
+}
 .cap-row input[type="number"] {
   width: 100%;
 }
