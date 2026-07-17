@@ -9,10 +9,12 @@ export default async function EditTeamPage({ params }: { params: Promise<{ id: s
   const t = await getTranslations("teams");
   const tc = await getTranslations("crud");
   const supabase = await createSupabaseServerClient();
+  // Note: no daily_cap in this select — that column (migration 0008) may be
+  // absent, and a failed embed here would surface as a confusing 404.
   const [{ data: row }, { data: people }, { data: types }, { data: locations }] = await Promise.all([
     supabase
       .from("team")
-      .select("*, team_member(person_id), team_capability(work_item_type_id, daily_cap)")
+      .select("*, team_member(person_id), team_capability(work_item_type_id)")
       .eq("id", id)
       .maybeSingle(),
     supabase.from("person").select("id, name").order("name"),
@@ -22,13 +24,19 @@ export default async function EditTeamPage({ params }: { params: Promise<{ id: s
   if (!row) notFound();
 
   const memberIds = (row.team_member ?? []).map((m: { person_id: string }) => m.person_id);
-  const caps = (row.team_capability ?? []) as Array<{
-    work_item_type_id: string;
-    daily_cap: number | null;
-  }>;
-  const capabilityIds = caps.map((c) => c.work_item_type_id);
+  const capabilityIds = (row.team_capability ?? []).map(
+    (c: { work_item_type_id: string }) => c.work_item_type_id,
+  );
+
+  // daily_cap fetched separately and tolerantly (ok if the column isn't there).
+  const { data: capRows } = await supabase
+    .from("team_capability")
+    .select("work_item_type_id, daily_cap")
+    .eq("team_id", id);
   const capabilityCaps: Record<string, number> = {};
-  for (const c of caps) if (c.daily_cap != null) capabilityCaps[c.work_item_type_id] = c.daily_cap;
+  for (const c of (capRows ?? []) as Array<{ work_item_type_id: string; daily_cap: number | null }>) {
+    if (c.daily_cap != null) capabilityCaps[c.work_item_type_id] = c.daily_cap;
+  }
 
   return (
     <main>

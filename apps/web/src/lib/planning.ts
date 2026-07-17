@@ -7,7 +7,6 @@ import type {
   ShiftContext,
   WorkItemType,
 } from "@montaj/rules";
-import { one } from "@/lib/rel";
 import type { createSupabaseServerClient } from "@/lib/supabase/server";
 
 type Supabase = Awaited<ReturnType<typeof createSupabaseServerClient>>;
@@ -42,14 +41,31 @@ export async function buildPlanningContext(supabase: Supabase): Promise<Planning
         .from("tenant_setting")
         .select("normal_shift_hours, overtime_shift_hours, working_days, production_buffer_days")
         .maybeSingle(),
+      // Only columns guaranteed since 0001 — daily_cap (0008) and coords (0009)
+      // are fetched separately/tolerantly below, so a lagging migration can't
+      // break scheduling or team editing.
       supabase
         .from("team")
         .select(
-          "id, name, is_subcontractor, preference_weight, team_member(person_id), team_capability(work_item_type_id, daily_cap), base_location:base_location_id(lat, lon)",
+          "id, name, is_subcontractor, preference_weight, base_location_id, team_member(person_id), team_capability(work_item_type_id)",
         ),
       supabase.from("availability").select("person_id, date_from, date_to"),
       supabase.from("site").select("id, lat, lon"),
     ]);
+
+  // Optional columns from later migrations — ignore the error if absent.
+  const { data: capRows } = await supabase
+    .from("team_capability")
+    .select("team_id, work_item_type_id, daily_cap");
+  const capByTeam: Record<string, Record<string, number>> = {};
+  for (const c of (capRows ?? []) as Array<{ team_id: string; work_item_type_id: string; daily_cap: number | null }>) {
+    if (c.daily_cap != null) (capByTeam[c.team_id] ??= {})[c.work_item_type_id] = c.daily_cap;
+  }
+  const { data: locRows } = await supabase.from("location").select("id, lat, lon");
+  const locCoords: Record<string, Coord> = {};
+  for (const l of (locRows ?? []) as Array<{ id: string; lat: number | null; lon: number | null }>) {
+    if (l.lat != null && l.lon != null) locCoords[l.id] = { lat: l.lat, lon: l.lon };
+  }
 
   const siteCoords: Record<string, Coord> = {};
   for (const s of (siteRows ?? []) as Array<{ id: string; lat: number | null; lon: number | null }>) {
@@ -109,18 +125,7 @@ export async function buildPlanningContext(supabase: Supabase): Promise<Planning
   }
 
   const teams: ScheduleTeam[] = (teamRows ?? []).map((t) => {
-    const dailyCapOverride: Record<string, number> = {};
-    for (const c of (t.team_capability ?? []) as Array<{
-      work_item_type_id: string;
-      daily_cap: number | null;
-    }>) {
-      if (c.daily_cap != null) dailyCapOverride[c.work_item_type_id] = c.daily_cap;
-    }
-    const base = one<{ lat: number | null; lon: number | null }>(t.base_location);
-    const baseCoord =
-      base && base.lat != null && base.lon != null
-        ? { lat: base.lat, lon: base.lon }
-        : undefined;
+    const baseCoord = t.base_location_id ? locCoords[t.base_location_id] : undefined;
     return {
       id: t.id,
       name: t.name,
@@ -133,7 +138,7 @@ export async function buildPlanningContext(supabase: Supabase): Promise<Planning
       travelMinutesToSite: {},
       baseCoord,
       unavailableByDate: unavailable[t.id] ?? {},
-      dailyCapOverride,
+      dailyCapOverride: capByTeam[t.id] ?? {},
     };
   });
 
