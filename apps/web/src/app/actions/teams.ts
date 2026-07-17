@@ -36,19 +36,26 @@ async function setRelations(
 ) {
   await supabase.from("team_member").delete().eq("team_id", teamId);
   await supabase.from("team_capability").delete().eq("team_id", teamId);
+
   if (memberIds.length) {
-    await supabase
+    const { error } = await supabase
       .from("team_member")
       .insert(memberIds.map((person_id) => ({ team_id: teamId, person_id })));
+    if (error) throw new Error(error.message);
   }
+
   if (capabilities.length) {
-    await supabase.from("team_capability").insert(
-      capabilities.map((c) => ({
-        team_id: teamId,
-        work_item_type_id: c.id,
-        daily_cap: c.cap,
-      })),
+    // Only include daily_cap when a cap is actually set — so capabilities still
+    // save even if the daily_cap column isn't present, and so a failure here is
+    // never swallowed silently.
+    const anyCap = capabilities.some((c) => c.cap != null);
+    const rows = capabilities.map((c) =>
+      anyCap
+        ? { team_id: teamId, work_item_type_id: c.id, daily_cap: c.cap }
+        : { team_id: teamId, work_item_type_id: c.id },
     );
+    const { error } = await supabase.from("team_capability").insert(rows);
+    if (error) throw new Error(error.message);
   }
 }
 
