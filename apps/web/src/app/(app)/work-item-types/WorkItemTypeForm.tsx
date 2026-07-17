@@ -11,6 +11,8 @@ export interface WorkItemTypeDefaults {
   normal?: number;
   overtime?: number;
   hoursPerUnit?: number;
+  scaleAttr?: string;
+  scaleCoefficient?: number;
 }
 
 export function WorkItemTypeForm({
@@ -63,15 +65,33 @@ export function WorkItemTypeForm({
           </label>
         </div>
       ) : (
-        <label>
-          {t("hoursPerUnit")}
-          <input
-            name="hoursPerUnit"
-            type="number"
-            step="0.1"
-            defaultValue={defaults.hoursPerUnit ?? 0}
-          />
-        </label>
+        <>
+          <label>
+            {t("hoursPerUnit")}
+            <input
+              name="hoursPerUnit"
+              type="number"
+              step="0.1"
+              defaultValue={defaults.hoursPerUnit ?? 0}
+            />
+          </label>
+          <div className="row-2">
+            <label>
+              {t("scaleAttr")}
+              <input name="scaleAttr" defaultValue={defaults.scaleAttr} placeholder="area_m2" />
+            </label>
+            <label>
+              {t("scaleCoefficient")}
+              <input
+                name="scaleCoefficient"
+                type="number"
+                step="0.0001"
+                defaultValue={defaults.scaleCoefficient ?? 0}
+              />
+            </label>
+          </div>
+          <span className="help">{t("scaleHelp")}</span>
+        </>
       )}
 
       <button type="submit" className="btn">

@@ -12,7 +12,7 @@ export default async function EditTeamPage({ params }: { params: Promise<{ id: s
   const [{ data: row }, { data: people }, { data: types }, { data: locations }] = await Promise.all([
     supabase
       .from("team")
-      .select("*, team_member(person_id), team_capability(work_item_type_id)")
+      .select("*, team_member(person_id), team_capability(work_item_type_id, daily_cap)")
       .eq("id", id)
       .maybeSingle(),
     supabase.from("person").select("id, name").order("name"),
@@ -22,9 +22,13 @@ export default async function EditTeamPage({ params }: { params: Promise<{ id: s
   if (!row) notFound();
 
   const memberIds = (row.team_member ?? []).map((m: { person_id: string }) => m.person_id);
-  const capabilityIds = (row.team_capability ?? []).map(
-    (c: { work_item_type_id: string }) => c.work_item_type_id,
-  );
+  const caps = (row.team_capability ?? []) as Array<{
+    work_item_type_id: string;
+    daily_cap: number | null;
+  }>;
+  const capabilityIds = caps.map((c) => c.work_item_type_id);
+  const capabilityCaps: Record<string, number> = {};
+  for (const c of caps) if (c.daily_cap != null) capabilityCaps[c.work_item_type_id] = c.daily_cap;
 
   return (
     <main>
@@ -43,6 +47,7 @@ export default async function EditTeamPage({ params }: { params: Promise<{ id: s
           baseLocationId: row.base_location_id,
           memberIds,
           capabilityIds,
+          capabilityCaps,
         }}
       />
     </main>

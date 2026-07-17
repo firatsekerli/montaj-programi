@@ -304,6 +304,15 @@ label.checkbox input {
   gap: 0.5rem;
   align-items: center;
 }
+.cap-row {
+  display: grid;
+  grid-template-columns: 1fr 110px;
+  gap: 0.5rem;
+  align-items: center;
+}
+.cap-row input[type="number"] {
+  width: 100%;
+}
 .btn-ghost {
   align-self: flex-start;
   background: transparent;

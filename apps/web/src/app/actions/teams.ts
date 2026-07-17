@@ -15,11 +15,24 @@ function parse(formData: FormData) {
   };
 }
 
+interface CapabilityInput {
+  id: string;
+  cap: number | null;
+}
+
+function parseCapabilities(formData: FormData): CapabilityInput[] {
+  return formData.getAll("capabilities").map(String).map((id) => {
+    const raw = String(formData.get(`cap_${id}`) ?? "").trim();
+    const cap = raw ? Number(raw) : NaN;
+    return { id, cap: Number.isFinite(cap) && cap > 0 ? cap : null };
+  });
+}
+
 async function setRelations(
   supabase: Awaited<ReturnType<typeof createSupabaseServerClient>>,
   teamId: string,
   memberIds: string[],
-  capabilityIds: string[],
+  capabilities: CapabilityInput[],
 ) {
   await supabase.from("team_member").delete().eq("team_id", teamId);
   await supabase.from("team_capability").delete().eq("team_id", teamId);
@@ -28,10 +41,14 @@ async function setRelations(
       .from("team_member")
       .insert(memberIds.map((person_id) => ({ team_id: teamId, person_id })));
   }
-  if (capabilityIds.length) {
-    await supabase
-      .from("team_capability")
-      .insert(capabilityIds.map((work_item_type_id) => ({ team_id: teamId, work_item_type_id })));
+  if (capabilities.length) {
+    await supabase.from("team_capability").insert(
+      capabilities.map((c) => ({
+        team_id: teamId,
+        work_item_type_id: c.id,
+        daily_cap: c.cap,
+      })),
+    );
   }
 }
 
@@ -50,7 +67,7 @@ export async function createTeam(formData: FormData) {
     supabase,
     data.id,
     formData.getAll("members").map(String),
-    formData.getAll("capabilities").map(String),
+    parseCapabilities(formData),
   );
 
   revalidatePath("/teams");
@@ -66,7 +83,7 @@ export async function updateTeam(id: string, formData: FormData) {
     supabase,
     id,
     formData.getAll("members").map(String),
-    formData.getAll("capabilities").map(String),
+    parseCapabilities(formData),
   );
 
   revalidatePath("/teams");

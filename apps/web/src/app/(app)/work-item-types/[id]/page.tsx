@@ -33,6 +33,8 @@ export default async function EditWorkItemTypePage({
           normal: row.base_capacity?.normal,
           overtime: row.base_capacity?.overtime,
           hoursPerUnit: row.effort?.hoursPerUnit,
+          scaleAttr: row.effort?.perAttr?.attr?.replace(/^line\./, ""),
+          scaleCoefficient: row.effort?.perAttr?.coefficient,
         }}
       />
     </main>

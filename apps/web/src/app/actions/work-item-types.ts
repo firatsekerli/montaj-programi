@@ -19,7 +19,7 @@ function parseForm(formData: FormData) {
     category: String(formData.get("category") ?? "").trim() || null,
     capacity_model: capacityModel,
     base_capacity: null as Record<string, number> | null,
-    effort: null as Record<string, number> | null,
+    effort: null as Record<string, unknown> | null,
   };
   if (capacityModel === "count") {
     base.base_capacity = {
@@ -27,7 +27,13 @@ function parseForm(formData: FormData) {
       overtime: Number(formData.get("overtime") ?? 0),
     };
   } else {
-    base.effort = { hoursPerUnit: Number(formData.get("hoursPerUnit") ?? 0) };
+    // Optional continuous sizing: hours = hoursPerUnit + coefficient × line.<attr>
+    const attr = String(formData.get("scaleAttr") ?? "").trim();
+    const coefficient = Number(formData.get("scaleCoefficient") ?? 0);
+    base.effort = {
+      hoursPerUnit: Number(formData.get("hoursPerUnit") ?? 0),
+      ...(attr ? { perAttr: { attr: `line.${attr}`, coefficient } } : {}),
+    };
   }
   return base;
 }

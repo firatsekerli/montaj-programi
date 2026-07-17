@@ -67,7 +67,10 @@
     "effort": "Efor (saat/adet)",
     "normal": "Mesaisiz (adet/gün)",
     "overtime": "Mesaili (adet/gün)",
-    "hoursPerUnit": "Adet başına saat",
+    "hoursPerUnit": "Adet başına saat (temel)",
+    "scaleAttr": "Boyuta göre ölçek — özellik (ör. area_m2)",
+    "scaleCoefficient": "Katsayı (saat/birim)",
+    "scaleHelp": "İsteğe bağlı: süre = temel saat + katsayı × özellik. Boş bırakılırsa sabit süre kullanılır. (Endüstriyel örn: 4.3125 + 0.1875 × area_m2)",
     "edit": "Düzenle",
     "delete": "Sil",
     "create": "Oluştur",
@@ -116,7 +119,9 @@
     "inHouse": "Kendi Ekibimiz",
     "isSubcontractor": "Taşeron mu?",
     "preference": "Öncelik ağırlığı (düşük = tercih edilir)",
-    "baseLocation": "Başlangıç konumu"
+    "baseLocation": "Başlangıç konumu",
+    "dailyCap": "günlük adet",
+    "dailyCapHelp": "İsteğe bağlı: bu ekibin o kapı tipinden günde kaç adet monte edebileceğini sabitler (ör. taşeron 2/gün). Boş = motor hesaplar."
   },
   "assets": {
     "title": "Araçlar ve Ekipman",

@@ -24,12 +24,14 @@ export async function TeamForm({
     baseLocationId?: string | null;
     memberIds?: string[];
     capabilityIds?: string[];
+    capabilityCaps?: Record<string, number>;
   };
   submitLabel: string;
 }) {
   const t = await getTranslations("teams");
   const memberSet = new Set(defaults.memberIds ?? []);
   const capSet = new Set(defaults.capabilityIds ?? []);
+  const caps = defaults.capabilityCaps ?? {};
 
   return (
     <form action={action} className="form panel">
@@ -76,16 +78,28 @@ export async function TeamForm({
 
       <fieldset>
         <legend>{t("capabilities")}</legend>
+        <p className="help">{t("dailyCapHelp")}</p>
         {types.map((ty) => (
-          <label key={ty.id} className="checkbox">
+          <div key={ty.id} className="cap-row">
+            <label className="checkbox">
+              <input
+                type="checkbox"
+                name="capabilities"
+                value={ty.id}
+                defaultChecked={capSet.has(ty.id)}
+              />
+              {ty.name}
+            </label>
             <input
-              type="checkbox"
-              name="capabilities"
-              value={ty.id}
-              defaultChecked={capSet.has(ty.id)}
+              name={`cap_${ty.id}`}
+              type="number"
+              min="0"
+              step="0.1"
+              placeholder={t("dailyCap")}
+              defaultValue={caps[ty.id] ?? ""}
+              aria-label={`${ty.name} ${t("dailyCap")}`}
             />
-            {ty.name}
-          </label>
+          </div>
         ))}
       </fieldset>
 
