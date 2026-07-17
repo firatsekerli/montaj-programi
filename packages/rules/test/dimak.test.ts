@@ -95,6 +95,14 @@ describe("Industrial door (effort model)", () => {
       10,
     );
   });
+
+  it("scales continuously between the anchors (4x4 m = 16 m²)", () => {
+    // hours = 4.3125 + 0.1875*16 = 7.3125 → 9/7.3125 ≈ 1.231/day
+    expect(dailyCapacity(industrialDoor, dimakShift, dimakRules, { "line.area_m2": 16 })).toBeCloseTo(
+      9 / 7.3125,
+      10,
+    );
+  });
 });
 
 describe("Travel & site access reduce what fits in a day", () => {

@@ -21,8 +21,15 @@ export interface WorkItemType {
   capacityModel: CapacityModel;
   /** Required when capacityModel === "count": units installable in a full day. */
   baseCapacity?: { normal: number; overtime: number };
-  /** Required when capacityModel === "effort": hours to install one unit. */
-  effort?: { hoursPerUnit: number };
+  /**
+   * Required when capacityModel === "effort": hours to install one unit.
+   * `perAttr` scales hours linearly with an attribute (continuous sizing), e.g.
+   * industrial door hours = hoursPerUnit + coefficient × area_m2.
+   */
+  effort?: {
+    hoursPerUnit: number;
+    perAttr?: { attr: string; coefficient: number };
+  };
 }
 
 export interface ShiftContext {

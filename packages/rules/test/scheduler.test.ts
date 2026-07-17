@@ -130,6 +130,40 @@ describe("delivery-driven scheduler", () => {
     expect(unplaced.some((x) => x.reason === "no_capacity")).toBe(true);
   });
 
+  it("skips a day when the whole team is on leave", () => {
+    const { assignments } = schedule({
+      workingDays: HORIZON,
+      shift: dimakShift,
+      rules: dimakRules,
+      teams: [team({ unavailableByDate: { "2026-01-05": 2 } })], // both members off day 1
+      orders: [order({ lines: [{ orderLineId: "l1", type: fullFrameSingleFire, quantity: 7, facts: {} }] })],
+    });
+    expect(assignments.every((a) => a.date >= "2026-01-06")).toBe(true);
+  });
+
+  it("honors a per-team daily-cap override (subcontractor 2/day)", () => {
+    // Industrial normally ~1/day for a 5x5; Faruk's override fits 2 in a day.
+    const faruk = team({
+      id: "faruk",
+      capableTypeIds: [industrialDoor.id],
+      dailyCapOverride: { [industrialDoor.id]: 2 },
+    });
+    const { assignments } = schedule({
+      workingDays: HORIZON,
+      shift: dimakShift,
+      rules: dimakRules,
+      teams: [faruk],
+      orders: [
+        order({
+          orderCode: "SIP-IND",
+          lines: [{ orderLineId: "l1", type: industrialDoor, quantity: 2, facts: { "line.area_m2": 25 } }],
+        }),
+      ],
+    });
+    const day1 = assignments.filter((a) => a.date === "2026-01-05");
+    expect(day1.reduce((s, a) => s + a.units, 0)).toBe(2); // both fit on one day
+  });
+
   it("respects committed load from started jobs (no double-booking)", () => {
     // team fully committed on day 1 → order starts day 2.
     const { assignments } = schedule({

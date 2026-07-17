@@ -92,7 +92,7 @@ begin
     returning id into v_full_double;
   insert into work_item_type (tenant_id, code, name, category, capacity_model, effort)
     values (v_tenant, 'ENDUSTRIYEL', 'Endüstriyel Kapı', 'Endüstriyel', 'effort',
-            '{"hoursPerUnit":9}')
+            '{"hoursPerUnit":4.3125,"perAttr":{"attr":"line.area_m2","coefficient":0.1875}}')
     returning id into v_industrial;
 
   -- Capacity modifier rules (the "±%" bullet points) --------------------------
@@ -106,11 +106,8 @@ begin
     (v_tenant, '3 kişilik ekip (+1.5 adet)', 30, 'global',
      '{"all":[{"var":"team.headcount","op":">=","value":3}]}',
      '{"op":"add_units","n":1.5}');
-  insert into capacity_rule (tenant_id, name, priority, scope, applies_to, condition, effect)
-    values (v_tenant, 'Küçük endüstriyel kapı (3x3m)', 10, 'work_item_type',
-      jsonb_build_object('work_item_type_id', v_industrial),
-      '{"all":[{"var":"line.area_m2","op":"<=","value":9}]}',
-      '{"op":"multiply_effort","factor":0.6667}');
+  -- (Industrial sizing is continuous via the type's effort.perAttr; no bucket
+  -- rule needed.)
 
   -- People --------------------------------------------------------------------
   insert into person (tenant_id, name, is_lead) values (v_tenant, 'Kazım', true) returning id into v_kazim;
@@ -146,6 +143,14 @@ begin
     (v_team_erkan, v_half_single), (v_team_erkan, v_full_single),
     (v_team_erkan, v_half_double), (v_team_erkan, v_full_double),
     (v_team_faruk, v_industrial);
+
+  -- Faruk (subcontractor) installs 2 industrial doors per day (spec).
+  update team_capability set daily_cap = 2
+    where team_id = v_team_faruk and work_item_type_id = v_industrial;
+
+  -- Example leave: Sezer off for two days (reduces Kazım team headcount then).
+  insert into availability (tenant_id, person_id, date_from, date_to, kind)
+    values (v_tenant, v_sezer, current_date + 7, current_date + 8, 'leave');
 
   -- Assets --------------------------------------------------------------------
   insert into asset (tenant_id, name, kind, current_location_id) values

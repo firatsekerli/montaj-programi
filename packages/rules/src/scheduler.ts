@@ -19,12 +19,17 @@ import type { CapacityRule, Facts, ShiftContext, WorkItemType } from "./types";
 export interface ScheduleTeam {
   id: string;
   name: string;
+  /** Base member count (before leave). */
   headcount: number;
   isSubcontractor: boolean;
   preferenceWeight: number;
   capableTypeIds: string[];
   /** Round-trip travel minutes from the team's base to a given site id. */
   travelMinutesToSite: Record<string, number>;
+  /** Members on leave per date — subtracted from headcount that day. */
+  unavailableByDate?: Record<string, number>;
+  /** Per-type units/day override for this team (e.g. subcontractor "2/day"). */
+  dailyCapOverride?: Record<string, number>;
 }
 
 export interface ScheduleLine {
@@ -205,19 +210,12 @@ function placeOrderOnTeam(
   const v = visited.get(team.id)!;
   const roundTrip = team.travelMinutesToSite[order.siteId] ?? 0;
 
-  const unitCost = new Map<string, number>();
-  for (const l of order.lines) {
-    if (!team.capableTypeIds.includes(l.type.id)) continue;
-    const facts: Facts = {
-      ...l.facts,
-      "team.headcount": team.headcount,
-      "day.overtime": shift.overtime,
-    };
-    unitCost.set(l.orderLineId, unitCostDays(l.type, shift, rules, facts));
-  }
-
   for (const date of window) {
     if (order.lines.every((l) => (remaining.get(l.orderLineId) ?? 0) <= 0)) break;
+
+    // Headcount varies by day: subtract anyone on leave. Whole team off => skip.
+    const headcount = team.headcount - (team.unavailableByDate?.[date] ?? 0);
+    if (headcount <= 0) continue;
 
     let rem = b.get(date) ?? 1;
     let overheadCharged = v.get(date)!.has(order.siteId);
@@ -225,8 +223,20 @@ function placeOrderOnTeam(
     for (const line of order.lines) {
       let r = remaining.get(line.orderLineId) ?? 0;
       if (r <= 0) continue;
-      const unit = unitCost.get(line.orderLineId);
-      if (unit === undefined || !Number.isFinite(unit) || unit <= 0) continue;
+      if (!team.capableTypeIds.includes(line.type.id)) continue;
+
+      // Per-team units/day override (e.g. subcontractor's fixed rate) wins;
+      // otherwise the capacity engine computes cost with this day's headcount.
+      const override = team.dailyCapOverride?.[line.type.id];
+      const unit =
+        override && override > 0
+          ? 1 / override
+          : unitCostDays(line.type, shift, rules, {
+              ...line.facts,
+              "team.headcount": headcount,
+              "day.overtime": shift.overtime,
+            });
+      if (!Number.isFinite(unit) || unit <= 0) continue;
 
       const overhead = overheadCharged
         ? 0

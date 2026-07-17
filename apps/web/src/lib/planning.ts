@@ -30,7 +30,7 @@ export interface PlanningContext {
 }
 
 export async function buildPlanningContext(supabase: Supabase): Promise<PlanningContext> {
-  const [{ data: types }, { data: rulesRows }, { data: setting }, { data: teamRows }, travel] =
+  const [{ data: types }, { data: rulesRows }, { data: setting }, { data: teamRows }, { data: leave }, travel] =
     await Promise.all([
       supabase.from("work_item_type").select("*"),
       supabase.from("capacity_rule").select("*").eq("enabled", true),
@@ -41,8 +41,9 @@ export async function buildPlanningContext(supabase: Supabase): Promise<Planning
       supabase
         .from("team")
         .select(
-          "id, name, is_subcontractor, preference_weight, team_member(person_id), team_capability(work_item_type_id)",
+          "id, name, is_subcontractor, preference_weight, team_member(person_id), team_capability(work_item_type_id, daily_cap)",
         ),
+      supabase.from("availability").select("person_id, date_from, date_to"),
       supabase.rpc("travel_estimates"),
     ]);
 
@@ -83,17 +84,49 @@ export async function buildPlanningContext(supabase: Supabase): Promise<Planning
     (travelMap[row.team_id] ??= {})[row.site_id] = minutes;
   }
 
-  const teams: ScheduleTeam[] = (teamRows ?? []).map((t) => ({
-    id: t.id,
-    name: t.name,
-    headcount: (t.team_member ?? []).length,
-    isSubcontractor: t.is_subcontractor,
-    preferenceWeight: Number(t.preference_weight ?? 100),
-    capableTypeIds: (t.team_capability ?? []).map(
-      (c: { work_item_type_id: string }) => c.work_item_type_id,
-    ),
-    travelMinutesToSite: travelMap[t.id] ?? {},
-  }));
+  // person -> the teams they belong to (a person can be on several teams).
+  const personTeams = new Map<string, string[]>();
+  for (const t of teamRows ?? []) {
+    for (const m of (t.team_member ?? []) as Array<{ person_id: string }>) {
+      const list = personTeams.get(m.person_id) ?? [];
+      list.push(t.id);
+      personTeams.set(m.person_id, list);
+    }
+  }
+  // team -> date -> number of members on leave that day.
+  const unavailable: Record<string, Record<string, number>> = {};
+  for (const av of (leave ?? []) as Array<{ person_id: string; date_from: string; date_to: string }>) {
+    const teamsWith = personTeams.get(av.person_id);
+    if (!teamsWith) continue;
+    for (const date of datesBetween(av.date_from, av.date_to)) {
+      for (const teamId of teamsWith) {
+        (unavailable[teamId] ??= {})[date] = ((unavailable[teamId] ??= {})[date] ?? 0) + 1;
+      }
+    }
+  }
+
+  const teams: ScheduleTeam[] = (teamRows ?? []).map((t) => {
+    const dailyCapOverride: Record<string, number> = {};
+    for (const c of (t.team_capability ?? []) as Array<{
+      work_item_type_id: string;
+      daily_cap: number | null;
+    }>) {
+      if (c.daily_cap != null) dailyCapOverride[c.work_item_type_id] = c.daily_cap;
+    }
+    return {
+      id: t.id,
+      name: t.name,
+      headcount: (t.team_member ?? []).length,
+      isSubcontractor: t.is_subcontractor,
+      preferenceWeight: Number(t.preference_weight ?? 100),
+      capableTypeIds: (t.team_capability ?? []).map(
+        (c: { work_item_type_id: string }) => c.work_item_type_id,
+      ),
+      travelMinutesToSite: travelMap[t.id] ?? {},
+      unavailableByDate: unavailable[t.id] ?? {},
+      dailyCapOverride,
+    };
+  });
 
   return { typeMap, rules, shift, teams, calendar };
 }
@@ -135,6 +168,20 @@ export function horizonWorkingDays(
     if (isWorking(d, workingWeekdays)) days.push(iso(d));
   }
   return days;
+}
+
+/** Inclusive list of ISO dates from..to (capped so a bad range can't blow up). */
+export function datesBetween(fromISO: string, toISO: string, maxDays = 400): string[] {
+  const out: string[] = [];
+  const d = new Date(`${fromISO}T00:00:00Z`);
+  const end = new Date(`${toISO}T00:00:00Z`);
+  let guard = 0;
+  while (d <= end && guard < maxDays) {
+    out.push(iso(d));
+    d.setUTCDate(d.getUTCDate() + 1);
+    guard++;
+  }
+  return out;
 }
 
 /** The working day that is `n` working days before `dateISO` (n ≥ 0). */

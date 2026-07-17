@@ -59,6 +59,10 @@ export function effectiveEffortHours(
     throw new Error(`effectiveEffortHours requires an effort-model type with effort: ${type.code}`);
   }
   let hours = type.effort.hoursPerUnit;
+  if (type.effort.perAttr) {
+    const value = Number(facts[type.effort.perAttr.attr] ?? 0);
+    if (Number.isFinite(value)) hours += type.effort.perAttr.coefficient * value;
+  }
   for (const rule of applicableRules(rules, facts)) {
     if (rule.effect.op === "multiply_effort") hours *= rule.effect.factor;
   }

@@ -46,15 +46,16 @@ export const fullFrameDoubleFire: WorkItemType = {
 };
 
 /**
- * Industrial door: effort-model. The spec gives "5x5 m = 1 day" as an anchor,
- * so a full-size unit costs a whole normal day (9 h). Smaller doors cost less
- * via a multiply_effort rule (see below).
+ * Industrial door: effort-model with CONTINUOUS sizing. The spec gives two
+ * anchors — 5x5 m (25 m²) = 1 day (9 h), and 3x3 m (9 m²) = 3 in 2 days (6 h).
+ * A line through those points is hours = 4.3125 + 0.1875 × area_m2, so time
+ * scales smoothly with size instead of in buckets.
  */
 export const industrialDoor: WorkItemType = {
   id: "wit_industrial",
   code: "ENDUSTRIYEL",
   capacityModel: "effort",
-  effort: { hoursPerUnit: 9 },
+  effort: { hoursPerUnit: 4.3125, perAttr: { attr: "line.area_m2", coefficient: 0.1875 } },
 };
 
 // ---- Capacity modifier rules (the "±%" bullet points in the spec) ----
@@ -94,21 +95,7 @@ export const teamOfThreeRule: CapacityRule = {
   effect: { op: "add_units", n: 1.5 },
 };
 
-/** Smaller industrial door (e.g. 3x3 m): ~3 in 2 days -> hours * 0.667. */
-export const smallIndustrialRule: CapacityRule = {
-  id: "rule_small_industrial",
-  name: "Küçük endüstriyel kapı",
-  enabled: true,
-  priority: 10,
-  condition: {
-    all: [{ var: "line.area_m2", op: "<=", value: 9 }], // 3x3 m
-  },
-  effect: { op: "multiply_effort", factor: 2 / 3 },
-};
+// Industrial sizing is now continuous (see industrialDoor.effort.perAttr), so
+// the old stepwise "small industrial" bucket rule is no longer needed.
 
-export const dimakRules: CapacityRule[] = [
-  oversizeRule,
-  demolitionRule,
-  teamOfThreeRule,
-  smallIndustrialRule,
-];
+export const dimakRules: CapacityRule[] = [oversizeRule, demolitionRule, teamOfThreeRule];

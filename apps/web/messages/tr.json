@@ -94,7 +94,13 @@
     "name": "Ad",
     "isLead": "Ekip Başı",
     "lead": "Ekip Başı",
-    "member": "Üye"
+    "member": "Üye",
+    "leave": "İzinler",
+    "leaveHelp": "İzinli günlerde kişinin ekibinin günlük kapasitesi düşer.",
+    "leaveFrom": "Başlangıç",
+    "leaveTo": "Bitiş",
+    "addLeave": "İzin Ekle",
+    "noLeave": "İzin kaydı yok."
   },
   "teams": {
     "title": "Ekipler",
