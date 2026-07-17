@@ -39,8 +39,14 @@ export async function updateSession(request: NextRequest): Promise<NextResponse>
     },
   );
 
-  // Touch the session so it is refreshed and cookies are rewritten.
-  await supabase.auth.getUser();
+  // getSession() reads the token from the cookie locally and only makes a
+  // network call when it actually needs to refresh (near expiry) — writing the
+  // new cookies via setAll above. getUser() by contrast validates against the
+  // Supabase Auth server on EVERY request (~100ms), which we were paying on
+  // every navigation. We don't make authorization decisions here; the real gate
+  // is PostgreSQL Row-Level Security, which verifies the JWT signature on every
+  // query, so a spoofed cookie still can't read data.
+  await supabase.auth.getSession();
 
   return response;
 }
