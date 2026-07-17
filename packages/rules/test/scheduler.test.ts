@@ -164,6 +164,35 @@ describe("delivery-driven scheduler", () => {
     expect(day1.reduce((s, a) => s + a.units, 0)).toBe(2); // both fit on one day
   });
 
+  it("charges intra-day travel between two sites (not two full round-trips)", () => {
+    // One team, one day, two nearby sites. The day's travel should be the tour
+    // base→A→B→base, so a second small order at B costs far less than a fresh
+    // base round-trip — proving intra-day site-to-site travel.
+    const base = { lat: 39.95, lon: 32.85 };
+    const A = { lat: 39.96, lon: 32.86 };
+    const B = { lat: 39.961, lon: 32.861 }; // right next to A
+    const single = HORIZON.slice(0, 1); // just day 1
+    const { assignments } = schedule({
+      workingDays: single,
+      shift: dimakShift,
+      rules: dimakRules,
+      teams: [team({ baseCoord: base })],
+      siteCoords: { A, B },
+      avgSpeedKmh: 55,
+      orders: [
+        order({ orderCode: "SIP-A", siteId: "A", earliestDate: single[0]!, deliveryDate: single[0]!,
+          lines: [{ orderLineId: "la", type: fullFrameSingleFire, quantity: 1, facts: {} }] }),
+        order({ orderCode: "SIP-B", siteId: "B", earliestDate: single[0]!, deliveryDate: single[0]!,
+          lines: [{ orderLineId: "lb", type: fullFrameSingleFire, quantity: 1, facts: {} }] }),
+      ],
+    });
+    const costA = assignments.find((a) => a.orderCode === "SIP-A")!.estimatedCost;
+    const costB = assignments.find((a) => a.orderCode === "SIP-B")!.estimatedCost;
+    // Both installed the same day; B (adjacent to A) adds only a tiny detour.
+    expect(assignments.every((a) => a.date === single[0])).toBe(true);
+    expect(costB).toBeLessThan(costA); // B's incremental travel << A's base trip
+  });
+
   it("respects committed load from started jobs (no double-booking)", () => {
     // team fully committed on day 1 → order starts day 2.
     const { assignments } = schedule({

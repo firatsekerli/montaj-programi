@@ -1,17 +1,19 @@
 import type {
   CapacityRule,
+  Coord,
   Facts,
   ScheduleLine,
   ScheduleTeam,
   ShiftContext,
   WorkItemType,
 } from "@montaj/rules";
+import { one } from "@/lib/rel";
 import type { createSupabaseServerClient } from "@/lib/supabase/server";
 
 type Supabase = Awaited<ReturnType<typeof createSupabaseServerClient>>;
 
-/** Average road speed (km/h) used to turn straight-line meters into minutes. */
-const AVG_KMH = 55;
+/** Average road speed (km/h) used to turn distances into minutes. */
+export const AVG_KMH = 55;
 /** How many weeks ahead the planner lays out working days. */
 export const HORIZON_WEEKS = 16;
 
@@ -27,10 +29,12 @@ export interface PlanningContext {
   shift: ShiftContext;
   teams: ScheduleTeam[];
   calendar: Calendar;
+  siteCoords: Record<string, Coord>;
+  avgSpeedKmh: number;
 }
 
 export async function buildPlanningContext(supabase: Supabase): Promise<PlanningContext> {
-  const [{ data: types }, { data: rulesRows }, { data: setting }, { data: teamRows }, { data: leave }, travel] =
+  const [{ data: types }, { data: rulesRows }, { data: setting }, { data: teamRows }, { data: leave }, { data: siteRows }] =
     await Promise.all([
       supabase.from("work_item_type").select("*"),
       supabase.from("capacity_rule").select("*").eq("enabled", true),
@@ -41,11 +45,16 @@ export async function buildPlanningContext(supabase: Supabase): Promise<Planning
       supabase
         .from("team")
         .select(
-          "id, name, is_subcontractor, preference_weight, team_member(person_id), team_capability(work_item_type_id, daily_cap)",
+          "id, name, is_subcontractor, preference_weight, team_member(person_id), team_capability(work_item_type_id, daily_cap), base_location:base_location_id(lat, lon)",
         ),
       supabase.from("availability").select("person_id, date_from, date_to"),
-      supabase.rpc("travel_estimates"),
+      supabase.from("site").select("id, lat, lon"),
     ]);
+
+  const siteCoords: Record<string, Coord> = {};
+  for (const s of (siteRows ?? []) as Array<{ id: string; lat: number | null; lon: number | null }>) {
+    if (s.lat != null && s.lon != null) siteCoords[s.id] = { lat: s.lat, lon: s.lon };
+  }
 
   const typeMap = new Map<string, WorkItemType>();
   for (const row of types ?? []) {
@@ -78,12 +87,6 @@ export async function buildPlanningContext(supabase: Supabase): Promise<Planning
     bufferDays: Number(setting?.production_buffer_days ?? 2),
   };
 
-  const travelMap: Record<string, Record<string, number>> = {};
-  for (const row of (travel.data ?? []) as Array<{ team_id: string; site_id: string; meters: number }>) {
-    const minutes = (row.meters / 1000 / AVG_KMH) * 60 * 2;
-    (travelMap[row.team_id] ??= {})[row.site_id] = minutes;
-  }
-
   // person -> the teams they belong to (a person can be on several teams).
   const personTeams = new Map<string, string[]>();
   for (const t of teamRows ?? []) {
@@ -113,6 +116,11 @@ export async function buildPlanningContext(supabase: Supabase): Promise<Planning
     }>) {
       if (c.daily_cap != null) dailyCapOverride[c.work_item_type_id] = c.daily_cap;
     }
+    const base = one<{ lat: number | null; lon: number | null }>(t.base_location);
+    const baseCoord =
+      base && base.lat != null && base.lon != null
+        ? { lat: base.lat, lon: base.lon }
+        : undefined;
     return {
       id: t.id,
       name: t.name,
@@ -122,13 +130,14 @@ export async function buildPlanningContext(supabase: Supabase): Promise<Planning
       capableTypeIds: (t.team_capability ?? []).map(
         (c: { work_item_type_id: string }) => c.work_item_type_id,
       ),
-      travelMinutesToSite: travelMap[t.id] ?? {},
+      travelMinutesToSite: {},
+      baseCoord,
       unavailableByDate: unavailable[t.id] ?? {},
       dailyCapOverride,
     };
   });
 
-  return { typeMap, rules, shift, teams, calendar };
+  return { typeMap, rules, shift, teams, calendar, siteCoords, avgSpeedKmh: AVG_KMH };
 }
 
 export function lineFacts(

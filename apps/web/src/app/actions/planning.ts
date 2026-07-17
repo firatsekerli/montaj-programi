@@ -1,7 +1,14 @@
 "use server";
 
 import { revalidatePath } from "next/cache";
-import { schedule, shiftHours, unitCostDays, type ScheduleOrder } from "@montaj/rules";
+import {
+  haversineKm,
+  kmToMinutes,
+  schedule,
+  shiftHours,
+  unitCostDays,
+  type ScheduleOrder,
+} from "@montaj/rules";
 import { getCurrentContext } from "@/lib/auth";
 import { createSupabaseServerClient } from "@/lib/supabase/server";
 import { buildPlanningContext, horizonWorkingDays, lineFacts, mondayOf } from "@/lib/planning";
@@ -120,6 +127,8 @@ export async function generatePlan() {
     teams: ctx.teams,
     orders: scheduleOrders,
     committed,
+    siteCoords: ctx.siteCoords,
+    avgSpeedKmh: ctx.avgSpeedKmh,
   });
 
   const deliveryByOrder = new Map((orders ?? []).map((o) => [o.code, o.delivery_date] as const));
@@ -178,7 +187,12 @@ export async function moveAssignment(assignmentId: string, teamId: string, date:
       "day.overtime": ctx.shift.overtime,
     };
     const unit = unitCostDays(type, ctx.shift, ctx.rules, facts);
-    const roundTrip = site ? (team.travelMinutesToSite[site.id] ?? 0) : 0;
+    // Single moved assignment: charge a base→site→base round trip from coords.
+    const siteCoord = site ? ctx.siteCoords[site.id] : undefined;
+    const roundTrip =
+      team.baseCoord && siteCoord
+        ? 2 * kmToMinutes(haversineKm(team.baseCoord, siteCoord), ctx.avgSpeedKmh)
+        : 0;
     const overhead = ((roundTrip + (site?.access_overhead_min ?? 0)) / 60) / shiftHours(ctx.shift);
     estimatedCost = a.units * unit + overhead;
   }

@@ -5,10 +5,19 @@ import { redirect } from "next/navigation";
 import { getCurrentContext } from "@/lib/auth";
 import { createSupabaseServerClient } from "@/lib/supabase/server";
 
+function num(formData: FormData, key: string): number | null {
+  const raw = String(formData.get(key) ?? "").trim();
+  if (raw === "") return null;
+  const n = Number(raw);
+  return Number.isFinite(n) ? n : null;
+}
+
 function parse(formData: FormData) {
   return {
     name: String(formData.get("name") ?? "").trim(),
     access_overhead_min: Number(formData.get("access_overhead_min") ?? 0),
+    lat: num(formData, "lat"),
+    lon: num(formData, "lon"),
   };
 }
 

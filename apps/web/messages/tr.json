@@ -87,7 +87,10 @@
     "name": "Ad",
     "accessOverhead": "Giriş Süresi",
     "accessOverheadHelp": "Güvenlik/giriş için kaybedilen dakika (örn. Roketsan = 120)",
-    "min": "dk"
+    "min": "dk",
+    "lat": "Enlem",
+    "lon": "Boylam",
+    "coordsHelp": "Konum (enlem/boylam). Seyahat süresi ve gün içi şantiyeler arası geçiş bu koordinatlardan hesaplanır. (Ankara ≈ 39.93, 32.85)"
   },
   "people": {
     "title": "Kişiler",

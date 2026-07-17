@@ -14,6 +14,7 @@
  * solver behind the same shape.
  */
 import { shiftHours, unitCostDays } from "./capacity";
+import { haversineKm, kmToMinutes, nearestNeighborTourKm, type Coord } from "./geo";
 import type { CapacityRule, Facts, ShiftContext, WorkItemType } from "./types";
 
 export interface ScheduleTeam {
@@ -24,8 +25,13 @@ export interface ScheduleTeam {
   isSubcontractor: boolean;
   preferenceWeight: number;
   capableTypeIds: string[];
-  /** Round-trip travel minutes from the team's base to a given site id. */
+  /**
+   * Round-trip travel minutes base→site (fallback used only when the team's
+   * base coordinate or the site coordinate is missing).
+   */
   travelMinutesToSite: Record<string, number>;
+  /** Team's base location, for coordinate-based (intra-day tour) travel. */
+  baseCoord?: Coord;
   /** Members on leave per date — subtracted from headcount that day. */
   unavailableByDate?: Record<string, number>;
   /** Per-type units/day override for this team (e.g. subcontractor "2/day"). */
@@ -86,6 +92,10 @@ export interface ScheduleInput {
   orders: ScheduleOrder[];
   /** Budgets already consumed by started/completed assignments. */
   committed?: CommittedLoad[];
+  /** Site coordinates by site id, for intra-day site-to-site travel. */
+  siteCoords?: Record<string, Coord>;
+  /** Average road speed (km/h) for distance→time. Default 55. */
+  avgSpeedKmh?: number;
 }
 
 export interface ScheduleOutput {
@@ -96,29 +106,46 @@ export interface ScheduleOutput {
 const EPS = 1e-9;
 const FAR_FUTURE = "9999-12-31";
 
+interface DayState {
+  /** Sites already visited (travel/access charged) this day. */
+  sites: Set<string>;
+  /** Coordinates of those sites, for the nearest-neighbor day tour. */
+  coords: Coord[];
+  /** Current whole-day driving time (minutes) for the tour so far. */
+  tourMin: number;
+}
+
 export function schedule(input: ScheduleInput): ScheduleOutput {
   const { workingDays, shift, rules, teams, orders } = input;
   const assignments: PlannedAssignment[] = [];
   const unplaced: UnplacedItem[] = [];
   const hoursPerDay = shiftHours(shift);
+  const siteCoords = input.siteCoords ?? {};
+  const speed = input.avgSpeedKmh ?? 55;
 
-  // Per (team, date): remaining budget (1.0) and sites already charged travel.
+  // Per (team, date): remaining budget (1.0) and the day's travel state.
   const budget = new Map<string, Map<string, number>>();
-  const visited = new Map<string, Map<string, Set<string>>>();
+  const state = new Map<string, Map<string, DayState>>();
   for (const t of teams) {
     const b = new Map<string, number>();
-    const v = new Map<string, Set<string>>();
+    const s = new Map<string, DayState>();
     for (const d of workingDays) {
       b.set(d, 1);
-      v.set(d, new Set());
+      s.set(d, { sites: new Set(), coords: [], tourMin: 0 });
     }
     budget.set(t.id, b);
-    visited.set(t.id, v);
+    state.set(t.id, s);
   }
   for (const c of input.committed ?? []) {
     const b = budget.get(c.teamId);
     if (b && b.has(c.date)) b.set(c.date, (b.get(c.date) ?? 1) - c.cost);
   }
+
+  const baseToSiteMin = (team: ScheduleTeam, siteId: string): number => {
+    const coord = siteCoords[siteId];
+    if (team.baseCoord && coord) return kmToMinutes(haversineKm(team.baseCoord, coord), speed);
+    return team.travelMinutesToSite[siteId] ?? 0;
+  };
 
   const loadInWindow = (teamId: string, windowDays: string[]): number => {
     const b = budget.get(teamId)!;
@@ -174,12 +201,15 @@ export function schedule(input: ScheduleInput): ScheduleOutput {
       (a, b) =>
         a.preferenceWeight - b.preferenceWeight ||
         loadInWindow(a.id, window) - loadInWindow(b.id, window) ||
-        (a.travelMinutesToSite[order.siteId] ?? 0) - (b.travelMinutesToSite[order.siteId] ?? 0),
+        baseToSiteMin(a, order.siteId) - baseToSiteMin(b, order.siteId),
     );
 
     for (const team of ordered) {
       if ([...remaining.values()].every((r) => r <= 0)) break;
-      placeOrderOnTeam(order, team, window, remaining, shift, rules, hoursPerDay, budget, visited, assignments);
+      placeOrderOnTeam(
+        order, team, window, remaining, shift, rules, hoursPerDay, budget,
+        state.get(team.id)!, siteCoords, speed, assignments,
+      );
     }
 
     for (const l of order.lines) {
@@ -203,12 +233,13 @@ function placeOrderOnTeam(
   rules: CapacityRule[],
   hoursPerDay: number,
   budget: Map<string, Map<string, number>>,
-  visited: Map<string, Map<string, Set<string>>>,
+  teamState: Map<string, DayState>,
+  siteCoords: Record<string, Coord>,
+  speed: number,
   out: PlannedAssignment[],
 ): void {
   const b = budget.get(team.id)!;
-  const v = visited.get(team.id)!;
-  const roundTrip = team.travelMinutesToSite[order.siteId] ?? 0;
+  const siteCoord = siteCoords[order.siteId];
 
   for (const date of window) {
     if (order.lines.every((l) => (remaining.get(l.orderLineId) ?? 0) <= 0)) break;
@@ -217,8 +248,20 @@ function placeOrderOnTeam(
     const headcount = team.headcount - (team.unavailableByDate?.[date] ?? 0);
     if (headcount <= 0) continue;
 
+    const st = teamState.get(date)!;
     let rem = b.get(date) ?? 1;
-    let overheadCharged = v.get(date)!.has(order.siteId);
+    let overheadCharged = st.sites.has(order.siteId);
+
+    // Overhead for adding this site to the day = the extra driving it adds to
+    // the team's nearest-neighbor tour (base → sites → base) + its site access.
+    let pendingTourMin = st.tourMin;
+    let pendingOverhead = 0;
+    if (!overheadCharged) {
+      const newCoords = siteCoord ? [...st.coords, siteCoord] : st.coords;
+      pendingTourMin = kmToMinutes(nearestNeighborTourKm(team.baseCoord, newCoords), speed);
+      const deltaTravel = Math.max(0, pendingTourMin - st.tourMin);
+      pendingOverhead = (deltaTravel + order.accessOverheadMinutes) / 60 / hoursPerDay;
+    }
 
     for (const line of order.lines) {
       let r = remaining.get(line.orderLineId) ?? 0;
@@ -238,9 +281,7 @@ function placeOrderOnTeam(
             });
       if (!Number.isFinite(unit) || unit <= 0) continue;
 
-      const overhead = overheadCharged
-        ? 0
-        : (roundTrip + order.accessOverheadMinutes) / 60 / hoursPerDay;
+      const overhead = overheadCharged ? 0 : pendingOverhead;
       const available = rem - overhead;
       if (available <= EPS) break; // no room left on this day
 
@@ -266,7 +307,9 @@ function placeOrderOnTeam(
       remaining.set(line.orderLineId, r - place);
       if (!overheadCharged) {
         overheadCharged = true;
-        v.get(date)!.add(order.siteId);
+        st.sites.add(order.siteId);
+        if (siteCoord) st.coords.push(siteCoord);
+        st.tourMin = pendingTourMin;
       }
     }
     b.set(date, rem);

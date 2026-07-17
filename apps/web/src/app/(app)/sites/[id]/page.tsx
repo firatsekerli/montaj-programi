@@ -19,7 +19,12 @@ export default async function EditSitePage({ params }: { params: Promise<{ id: s
       <SiteForm
         action={updateSite.bind(null, id)}
         submitLabel={tc("save")}
-        defaults={{ name: row.name, accessOverhead: row.access_overhead_min }}
+        defaults={{
+          name: row.name,
+          accessOverhead: row.access_overhead_min,
+          lat: row.lat,
+          lon: row.lon,
+        }}
       />
     </main>
   );
