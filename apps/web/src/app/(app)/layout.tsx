@@ -1,12 +1,23 @@
-import type { ReactNode } from "react";
+import { Suspense, type ReactNode } from "react";
 import { redirect } from "next/navigation";
 import Link from "next/link";
 import { getTranslations } from "next-intl/server";
-import { getCurrentContext } from "@/lib/auth";
+import { getCurrentContext, getSessionUser } from "@/lib/auth";
 import { signOut } from "@/app/actions/auth";
 
+/**
+ * Resolves the tenant name off the critical path. Rendered inside <Suspense> so
+ * its DB round-trip streams into the sidebar without blocking the page content.
+ */
+async function TenantName() {
+  const { tenantName } = await getCurrentContext();
+  return <span className="tenant">{tenantName ?? "—"}</span>;
+}
+
 export default async function AppLayout({ children }: { children: ReactNode }) {
-  const { user, tenantName } = await getCurrentContext();
+  // Auth gate uses the local session only (no DB query), so navigation isn't
+  // blocked on the membership lookup.
+  const user = await getSessionUser();
   if (!user) redirect("/login");
 
   const t = await getTranslations("nav");
@@ -27,7 +38,9 @@ export default async function AppLayout({ children }: { children: ReactNode }) {
       <aside className="sidebar">
         <div className="brand">
           <strong>Montaj Programı</strong>
-          <span className="tenant">{tenantName ?? "—"}</span>
+          <Suspense fallback={<span className="tenant">…</span>}>
+            <TenantName />
+          </Suspense>
         </div>
         <nav>
           {links.map((l) => (

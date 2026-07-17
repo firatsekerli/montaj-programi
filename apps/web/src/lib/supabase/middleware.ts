@@ -10,6 +10,14 @@ type CookieToSet = { name: string; value: string; options?: CookieOptions };
  * (app) layout.
  */
 export async function updateSession(request: NextRequest): Promise<NextResponse> {
+  // Next prefetches routes on hover/viewport. Those only need the loading
+  // skeleton, not a fresh session — skip the auth round-trip so hovering the
+  // menu doesn't fire a Supabase Auth request each time.
+  const isPrefetch =
+    request.headers.get("next-router-prefetch") === "1" ||
+    request.headers.get("purpose") === "prefetch";
+  if (isPrefetch) return NextResponse.next({ request });
+
   let response = NextResponse.next({ request });
 
   const supabase = createServerClient(
