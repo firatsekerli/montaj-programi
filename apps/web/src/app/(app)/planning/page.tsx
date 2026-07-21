@@ -41,24 +41,29 @@ export default async function PlanningPage({
 
   let assignments: BoardAssignment[] = [];
   if (plan) {
-    const { data } = await supabase
-      .from("assignment")
-      .select(
-        "id, team_id, assign_date, units, estimated_cost, work_order:order_id(code), order_line:order_line_id(work_item_type:work_item_type_id(name))",
-      )
-      .eq("plan_id", plan.id)
-      .gte("assign_date", weekStart)
-      .lte("assign_date", weekEnd);
+    const cols =
+      "id, team_id, assign_date, units, estimated_cost, work_order:order_id(code), order_line:order_line_id(work_item_type:work_item_type_id(name))";
+    // Include `manual` (0014) when present; fall back if the migration is behind.
+    const run = (sel: string) =>
+      supabase
+        .from("assignment")
+        .select(sel)
+        .eq("plan_id", plan.id)
+        .gte("assign_date", weekStart)
+        .lte("assign_date", weekEnd);
+    let data = (await run(`${cols}, manual`)).data as Array<Record<string, unknown>> | null;
+    if (!data) data = (await run(cols)).data as Array<Record<string, unknown>> | null;
     assignments = (data ?? []).map((a) => {
       const wit = one<{ name: string }>(one<{ work_item_type: unknown }>(a.order_line)?.work_item_type);
       return {
-        id: a.id,
-        teamId: a.team_id,
-        date: a.assign_date,
-        units: a.units,
+        id: String(a.id),
+        teamId: String(a.team_id),
+        date: String(a.assign_date),
+        units: Number(a.units),
         cost: Number(a.estimated_cost ?? 0),
         orderCode: one<{ code: string }>(a.work_order)?.code ?? "",
         typeName: wit?.name ?? "",
+        manual: a.manual === true,
       };
     });
   }

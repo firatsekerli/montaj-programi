@@ -313,3 +313,37 @@ export function mondayOf(date: Date): string {
   d.setUTCDate(d.getUTCDate() - dow);
   return iso(d);
 }
+
+/** First day (UTC) of the month containing `date`, as ISO. */
+export function firstOfMonth(date: Date): string {
+  return iso(new Date(Date.UTC(date.getUTCFullYear(), date.getUTCMonth(), 1)));
+}
+
+/** Shift a YYYY-MM-01 ISO date by `delta` months. */
+export function addMonths(monthISO: string, delta: number): string {
+  const d = new Date(`${monthISO}T00:00:00Z`);
+  return iso(new Date(Date.UTC(d.getUTCFullYear(), d.getUTCMonth() + delta, 1)));
+}
+
+/**
+ * All dates of the Monday-start grid that fully covers the month of `monthISO`
+ * (leading/trailing days from adjacent months included), so a calendar renders
+ * as whole weeks.
+ */
+export function monthGrid(monthISO: string): string[] {
+  const first = new Date(`${monthISO}T00:00:00Z`);
+  const lead = (first.getUTCDay() + 6) % 7; // days from Monday
+  const start = new Date(first);
+  start.setUTCDate(first.getUTCDate() - lead);
+  const last = new Date(Date.UTC(first.getUTCFullYear(), first.getUTCMonth() + 1, 0));
+  const trail = 6 - ((last.getUTCDay() + 6) % 7);
+  const end = new Date(last);
+  end.setUTCDate(last.getUTCDate() + trail);
+  const days: string[] = [];
+  const cur = new Date(start);
+  while (cur <= end) {
+    days.push(iso(cur));
+    cur.setUTCDate(cur.getUTCDate() + 1);
+  }
+  return days;
+}

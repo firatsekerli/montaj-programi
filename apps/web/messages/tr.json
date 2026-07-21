@@ -239,6 +239,7 @@
     "noPlan": "Bu hafta için henüz plan oluşturulmadı. \"Planı Oluştur\" ile başlayın.",
     "noTeams": "Önce en az bir ekip ekleyin.",
     "dayShare": "{pct}% gün",
+    "pinned": "Elle yerleştirildi — yeniden oluşturmada korunur",
     "unplacedTitle": "Planlanamayan siparişler",
     "unplacedNote": "Aşağıdaki kalemler bu haftaya yerleştirilemedi:",
     "unitsShort": "adet",
@@ -246,6 +247,11 @@
     "reasonPastDeadline": "Teslim tarihi geçmiş ({date})",
     "reasonNoTeam": "Yetkin ekip yok",
     "reasonNoCapacity": "Kapasite yetmedi (teslim tarihine yetişmiyor)"
+  },
+  "calendar": {
+    "title": "Aylık Takvim",
+    "prev": "Önceki ay",
+    "next": "Sonraki ay"
   },
   "notifications": {
     "title": "Bildirimler",

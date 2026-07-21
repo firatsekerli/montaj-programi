@@ -22,6 +22,8 @@ export interface BoardAssignment {
   cost: number;
   orderCode: string;
   typeName: string;
+  /** Dragged into place by the planner — kept across "Yeniden Oluştur". */
+  manual?: boolean;
 }
 interface TeamRow {
   id: string;
@@ -57,7 +59,7 @@ export function PlanningBoard({
     const current = items.find((a) => a.id === id);
     if (!current || (current.teamId === teamId && current.date === date)) return;
 
-    setItems((prev) => prev.map((a) => (a.id === id ? { ...a, teamId, date } : a)));
+    setItems((prev) => prev.map((a) => (a.id === id ? { ...a, teamId, date, manual: true } : a)));
     startTransition(async () => {
       await moveAssignment(id, teamId, date);
       router.refresh();
@@ -150,7 +152,14 @@ function Card({ a }: { a: BoardAssignment }) {
       {...listeners}
       {...attributes}
     >
-      <strong>{a.orderCode}</strong>
+      <strong>
+        {a.orderCode}
+        {a.manual && (
+          <span className="pin" title={t("pinned")}>
+            📌
+          </span>
+        )}
+      </strong>
       <span className="card-line">
         {a.units}× {a.typeName}
       </span>

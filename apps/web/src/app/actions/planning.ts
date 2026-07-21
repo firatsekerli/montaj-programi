@@ -56,24 +56,54 @@ export async function generatePlan() {
 
   const planId = await getOrCreatePlan(supabase, tenantId, firstDay, lastDay);
 
-  // Keep started/completed assignments; reserve their team-days.
-  const { data: kept } = await supabase
+  // Assignments that are FIXED in place — started/completed work, plus any card
+  // the planner dragged manually — are kept (their team-day reserved and their
+  // units subtracted). Only the remaining auto-planned rows are recomputed.
+  // Tolerant of a lagging migration: if `manual` is absent, fall back to status.
+  type Row = {
+    id: string;
+    team_id: string;
+    assign_date: string;
+    estimated_cost: number | null;
+    order_line_id: string | null;
+    units: number;
+    status: string;
+    manual?: boolean;
+  };
+  let rows: Row[] = [];
+  const withManual = await supabase
     .from("assignment")
-    .select("team_id, assign_date, estimated_cost, order_line_id, units")
-    .eq("plan_id", planId)
-    .in("status", ["in_progress", "completed"]);
-  const committed = (kept ?? []).map((k) => ({
+    .select("id, team_id, assign_date, estimated_cost, order_line_id, units, status, manual")
+    .eq("plan_id", planId);
+  if (withManual.error) {
+    const res = await supabase
+      .from("assignment")
+      .select("id, team_id, assign_date, estimated_cost, order_line_id, units, status")
+      .eq("plan_id", planId);
+    rows = ((res.data ?? []) as Row[]).map((r) => ({ ...r, manual: false }));
+  } else {
+    rows = (withManual.data ?? []) as Row[];
+  }
+
+  const fixed = rows.filter(
+    (r) => r.status === "in_progress" || r.status === "completed" || r.manual === true,
+  );
+  const deleteIds = rows
+    .filter((r) => r.status === "planned" && r.manual !== true)
+    .map((r) => r.id);
+
+  const committed = fixed.map((k) => ({
     teamId: k.team_id,
     date: k.assign_date,
     cost: Number(k.estimated_cost ?? 0),
   }));
   const keptUnits = new Map<string, number>();
-  for (const k of kept ?? []) {
+  for (const k of fixed) {
     if (k.order_line_id) keptUnits.set(k.order_line_id, (keptUnits.get(k.order_line_id) ?? 0) + k.units);
   }
 
-  // Discard the previous "planned" (not-started) assignments before recomputing.
-  await supabase.from("assignment").delete().eq("plan_id", planId).eq("status", "planned");
+  // Discard only the previous AUTO-planned rows; kept/manual ones stay.
+  if (deleteIds.length) await supabase.from("assignment").delete().in("id", deleteIds);
 
   const { data: orders } = await supabase
     .from("work_order")
@@ -200,10 +230,16 @@ export async function moveAssignment(assignmentId: string, teamId: string, date:
     estimatedCost = a.units * unit + overhead;
   }
 
-  const { error } = await supabase
+  // Mark the move as manual so "Yeniden Oluştur" keeps it. Tolerant of a lagging
+  // migration: if the `manual` column isn't there yet, still perform the move.
+  const payload = { team_id: teamId, assign_date: date, estimated_cost: estimatedCost };
+  let { error } = await supabase
     .from("assignment")
-    .update({ team_id: teamId, assign_date: date, estimated_cost: estimatedCost })
+    .update({ ...payload, manual: true })
     .eq("id", assignmentId);
+  if (error) {
+    ({ error } = await supabase.from("assignment").update(payload).eq("id", assignmentId));
+  }
   if (error) throw new Error(error.message);
 
   revalidatePath("/planning");

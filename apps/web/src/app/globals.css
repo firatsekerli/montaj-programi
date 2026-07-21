@@ -709,3 +709,119 @@ label.checkbox input {
     padding: 1.25rem;
   }
 }
+
+/* ---- Pinned (manually-moved) plan cards ---- */
+.card-plan .pin {
+  margin-inline-start: 0.35rem;
+  font-size: 0.75rem;
+  vertical-align: middle;
+}
+
+/* ---- Month calendar (dashboard) ---- */
+.cal-panel {
+  padding-top: 1rem;
+}
+.cal-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 1rem;
+  margin-bottom: 0.9rem;
+}
+.cal-head h2 {
+  margin: 0;
+  font-size: 1.05rem;
+}
+.cal-nav {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 2rem;
+  height: 2rem;
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  color: var(--text);
+  text-decoration: none;
+  font-size: 1.1rem;
+}
+.cal-nav:hover {
+  border-color: var(--accent);
+  color: var(--accent);
+}
+.cal-grid {
+  display: grid;
+  grid-template-columns: repeat(7, 1fr);
+  gap: 6px;
+}
+.cal-dow {
+  font-size: 0.75rem;
+  color: var(--muted);
+  text-align: center;
+  padding-bottom: 0.2rem;
+}
+.cal-cell {
+  display: flex;
+  flex-direction: column;
+  gap: 3px;
+  min-height: 92px;
+  padding: 0.35rem;
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  background: var(--panel-2);
+  text-decoration: none;
+  color: inherit;
+  overflow: hidden;
+}
+.cal-cell:hover {
+  border-color: var(--accent);
+}
+.cal-cell.out {
+  opacity: 0.45;
+}
+.cal-cell.today {
+  border-color: var(--accent);
+  box-shadow: inset 0 0 0 1px var(--accent);
+}
+.cal-day {
+  font-size: 0.8rem;
+  color: var(--muted);
+  align-self: flex-end;
+  line-height: 1;
+}
+.cal-cell.today .cal-day {
+  color: var(--accent);
+  font-weight: 700;
+}
+.cal-chip {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.3rem;
+  padding: 1px 5px;
+  border-radius: 5px;
+  background: color-mix(in srgb, var(--accent) 16%, transparent);
+  border: 1px solid color-mix(in srgb, var(--accent) 32%, transparent);
+  font-size: 0.72rem;
+  line-height: 1.5;
+}
+.cal-chip-code {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.cal-chip-units {
+  color: var(--muted);
+  flex: none;
+}
+.cal-more {
+  font-size: 0.7rem;
+  color: var(--muted);
+}
+@media (max-width: 720px) {
+  .cal-cell {
+    min-height: 64px;
+  }
+  .cal-chip-code {
+    max-width: 5ch;
+  }
+}
