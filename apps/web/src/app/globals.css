@@ -124,6 +124,20 @@ main {
   width: 100%;
 }
 
+/* On very wide screens, cap the content width and center it. */
+@media (min-width: 1600px) {
+  .content {
+    max-width: 1120px;
+    margin-inline: auto;
+  }
+  main {
+    max-width: 1120px;
+  }
+  .form.form-wide {
+    max-width: 1120px;
+  }
+}
+
 .page-head {
   display: flex;
   align-items: center;
