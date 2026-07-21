@@ -1,4 +1,5 @@
 import { getTranslations } from "next-intl/server";
+import { BaseLocationField } from "./BaseLocationField";
 
 interface Option {
   id: string;
@@ -63,39 +64,9 @@ export async function TeamForm({
           </label>
         </div>
 
-        {/* Right: base location + add-new */}
+        {/* Right: base location + add-new (modal) */}
         <div className="form-col">
-          <label>
-            {t("baseLocation")}
-            <select name="base_location_id" defaultValue={defaults.baseLocationId ?? ""}>
-              <option value="">—</option>
-              {locations.map((l) => (
-                <option key={l.id} value={l.id}>
-                  {l.name ?? l.id}
-                </option>
-              ))}
-            </select>
-            <span className="help">{t("baseLocationHelp")}</span>
-          </label>
-
-          <details className="add-location">
-            <summary>{t("newLocation")}</summary>
-            <label>
-              {t("newLocationName")}
-              <input name="new_location_name" placeholder={t("newLocationName")} />
-            </label>
-            <div className="row-2">
-              <label>
-                {t("lat")}
-                <input name="new_location_lat" type="number" step="any" />
-              </label>
-              <label>
-                {t("lon")}
-                <input name="new_location_lon" type="number" step="any" />
-              </label>
-            </div>
-            <span className="help">{t("newLocationHelp")}</span>
-          </details>
+          <BaseLocationField locations={locations} defaultLocationId={defaults.baseLocationId} />
         </div>
       </div>
 
