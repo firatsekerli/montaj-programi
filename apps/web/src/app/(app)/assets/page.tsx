@@ -3,15 +3,19 @@ import { getTranslations } from "next-intl/server";
 import { createSupabaseServerClient } from "@/lib/supabase/server";
 import { one } from "@/lib/rel";
 import { deleteAsset } from "@/app/actions/assets";
+import { AssetLocationField } from "./AssetLocationField";
 
 export default async function AssetsPage() {
   const t = await getTranslations("assets");
   const tc = await getTranslations("crud");
   const supabase = await createSupabaseServerClient();
-  const { data: rows } = await supabase
-    .from("asset")
-    .select("id, name, kind, tracks_location, current_location:current_location_id(name)")
-    .order("name");
+  const [{ data: rows }, { data: locations }] = await Promise.all([
+    supabase
+      .from("asset")
+      .select("id, name, kind, tracks_location, current_location_id, current_location:current_location_id(name)")
+      .order("name"),
+    supabase.from("location").select("id, name").order("name"),
+  ]);
 
   return (
     <main>
@@ -41,7 +45,17 @@ export default async function AssetsPage() {
                   <td>{r.name}</td>
                   <td>{r.kind === "vehicle" ? t("vehicle") : t("equipment")}</td>
                   <td>{r.tracks_location ? t("yes") : "—"}</td>
-                  <td className="muted-cell">{loc?.name ?? "—"}</td>
+                  <td className="muted-cell">
+                    {r.tracks_location ? (
+                      <AssetLocationField
+                        assetId={r.id}
+                        locations={locations ?? []}
+                        defaultLocationId={r.current_location_id}
+                      />
+                    ) : (
+                      (loc?.name ?? "—")
+                    )}
+                  </td>
                   <td className="row-actions">
                     <Link href={`/assets/${r.id}`}>{tc("edit")}</Link>
                     <form action={deleteAsset.bind(null, r.id)}>

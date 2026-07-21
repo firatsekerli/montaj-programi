@@ -1,4 +1,5 @@
 import { getTranslations } from "next-intl/server";
+import { AssetLocationField } from "./AssetLocationField";
 
 interface LocationOption {
   id: string;
@@ -15,18 +16,35 @@ interface TypeOption {
   name: string;
 }
 
+interface AssetOption {
+  id: string;
+  name: string;
+}
+
+export interface AssetCapacityDefault {
+  min?: number | null;
+  max?: number | null;
+  maxLengthM?: number | null;
+}
+
 export async function AssetForm({
   action,
+  assetId,
   locations,
   teams,
   types,
+  assets,
   defaults = {},
   submitLabel,
 }: {
   action: (formData: FormData) => void | Promise<void>;
+  /** Present when editing — enables the live location update. */
+  assetId?: string;
   locations: LocationOption[];
   teams: TeamOption[];
   types: TypeOption[];
+  /** Other assets, for the dependency picker. */
+  assets: AssetOption[];
   defaults?: {
     name?: string;
     kind?: "vehicle" | "equipment";
@@ -34,13 +52,16 @@ export async function AssetForm({
     currentLocationId?: string | null;
     teamId?: string | null;
     resourceKind?: string | null;
-    /** typeId → max units/day this asset carries. */
-    carryCap?: Record<string, number>;
+    /** typeId → {min, max, maxLengthM}. */
+    capacities?: Record<string, AssetCapacityDefault>;
+    /** requiredAssetId → note. */
+    dependencies?: Record<string, string>;
   };
   submitLabel: string;
 }) {
   const t = await getTranslations("assets");
-  const carryCap = defaults.carryCap ?? {};
+  const capacities = defaults.capacities ?? {};
+  const dependencies = defaults.dependencies ?? {};
   return (
     <form action={action} className="form form-wide panel">
       <label>
@@ -56,21 +77,18 @@ export async function AssetForm({
       </label>
       <label>
         {t("location")}
-        <select name="current_location_id" defaultValue={defaults.currentLocationId ?? ""}>
-          <option value="">—</option>
-          {locations.map((l) => (
-            <option key={l.id} value={l.id}>
-              {l.name ?? l.id}
-            </option>
-          ))}
-        </select>
+        <AssetLocationField
+          assetId={assetId}
+          locations={locations}
+          defaultLocationId={defaults.currentLocationId}
+        />
       </label>
       <label className="checkbox">
         <input type="checkbox" name="tracks_location" defaultChecked={defaults.tracksLocation} />
         {t("tracksLocation")}
       </label>
 
-      <fieldset className="subform">
+      <fieldset>
         <legend>{t("fleetTitle")}</legend>
         <label>
           {t("team")}
@@ -90,27 +108,64 @@ export async function AssetForm({
           <input name="resource_kind" defaultValue={defaults.resourceKind ?? ""} placeholder="manlift" />
         </label>
         <span className="help">{t("resourceKindHelp")}</span>
+      </fieldset>
 
-        {types.length > 0 && (
-          <>
-            <span className="field-label">{t("carryCap")}</span>
-            <span className="help">{t("carryCapHelp")}</span>
-            <div className="cap-list">
-              {types.map((ty) => (
-                <label key={ty.id} className="cap-row">
-                  <span>{ty.name}</span>
-                  <input
-                    name={`cap_${ty.id}`}
-                    type="number"
-                    min="0"
-                    step="1"
-                    defaultValue={carryCap[ty.id] ?? ""}
-                    placeholder="—"
-                  />
-                </label>
-              ))}
+      <fieldset>
+        <legend>{t("capacityTitle")}</legend>
+        <span className="help">{t("capacityHelp")}</span>
+        {types.length === 0 ? (
+          <p className="note">{t("noTypes")}</p>
+        ) : (
+          <div className="acap-list">
+            <div className="acap-row acap-head">
+              <span>{t("type")}</span>
+              <span>{t("capMin")}</span>
+              <span>{t("capMax")}</span>
+              <span>{t("capLen")}</span>
             </div>
-          </>
+            {types.map((ty) => {
+              const c = capacities[ty.id] ?? {};
+              return (
+                <div key={ty.id} className="acap-row">
+                  <span className="acap-name">{ty.name}</span>
+                  <input name={`capmin_${ty.id}`} type="number" min="0" step="1"
+                    defaultValue={c.min ?? ""} placeholder="—" aria-label={`${ty.name} ${t("capMin")}`} />
+                  <input name={`capmax_${ty.id}`} type="number" min="0" step="1"
+                    defaultValue={c.max ?? ""} placeholder="—" aria-label={`${ty.name} ${t("capMax")}`} />
+                  <input name={`caplen_${ty.id}`} type="number" min="0" step="0.1"
+                    defaultValue={c.maxLengthM ?? ""} placeholder="—" aria-label={`${ty.name} ${t("capLen")}`} />
+                </div>
+              );
+            })}
+          </div>
+        )}
+      </fieldset>
+
+      <fieldset>
+        <legend>{t("dependencyTitle")}</legend>
+        <span className="help">{t("dependencyHelp")}</span>
+        {assets.length === 0 ? (
+          <p className="note">{t("noOtherAssets")}</p>
+        ) : (
+          <div className="dep-list">
+            {assets.map((a) => {
+              const checked = a.id in dependencies;
+              return (
+                <div key={a.id} className="dep-row">
+                  <label className="checkbox">
+                    <input type="checkbox" name="dependencies" value={a.id} defaultChecked={checked} />
+                    {a.name}
+                  </label>
+                  <input
+                    name={`depnote_${a.id}`}
+                    defaultValue={dependencies[a.id] ?? ""}
+                    placeholder={t("dependencyNote")}
+                    aria-label={`${a.name} ${t("dependencyNote")}`}
+                  />
+                </div>
+              );
+            })}
+          </div>
         )}
       </fieldset>
 

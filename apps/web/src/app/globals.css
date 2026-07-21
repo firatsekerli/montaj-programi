@@ -446,6 +446,64 @@ label.checkbox input {
   color: var(--text);
   margin-top: 0.25rem;
 }
+
+/* Live location control (asset editor + list) */
+.live-loc {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.5rem;
+  width: 100%;
+}
+.live-loc select {
+  flex: 1;
+  min-width: 0;
+}
+.live-loc-status {
+  font-size: 0.8rem;
+  color: var(--accent);
+  white-space: nowrap;
+}
+.muted-cell .live-loc {
+  max-width: 320px;
+}
+
+/* Per-type asset capacity grid (min / max / max length) */
+.acap-list {
+  display: flex;
+  flex-direction: column;
+  gap: 0.4rem;
+  margin-top: 0.25rem;
+}
+.acap-row {
+  display: grid;
+  grid-template-columns: 1fr 88px 88px 96px;
+  gap: 0.6rem;
+  align-items: center;
+}
+.acap-row input[type="number"] {
+  width: 100%;
+}
+.acap-head {
+  font-size: 0.78rem;
+  color: var(--muted);
+}
+.acap-name {
+  font-size: 0.9rem;
+}
+
+/* Asset dependency rows (requires-asset checkbox + note) */
+.dep-list {
+  display: flex;
+  flex-direction: column;
+  gap: 0.4rem;
+  margin-top: 0.25rem;
+}
+.dep-row {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 0.75rem;
+  align-items: center;
+}
 .btn-ghost {
   align-self: flex-start;
   background: transparent;

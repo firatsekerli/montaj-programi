@@ -186,8 +186,18 @@
     "teamHelp": "Bu araç hangi ekibin aracıysa onu seçin. Ekip bir işe atandığında bu araç da atamaya yazılır ve taşıma kapasitesi o ekibi sınırlar.",
     "resourceKind": "Paylaşılan kaynak türü",
     "resourceKindHelp": "İsteğe bağlı: bu ekipman paylaşılan bir havuzun parçasıysa türünü yazın (ör. \"manlift\"). Aynı türden ekipman sayısı, o kaynağı gerektiren tipi aynı gün kaç ekibin monte edebileceğini sınırlar.",
-    "carryCap": "Günlük taşıma kapasitesi",
-    "carryCapHelp": "Bu aracın kapı tipi başına günde kaç adet taşıyabileceği. Boş = sınır yok. Planlayıcı ekibin günlük montajını bu sayıyla sınırlar."
+    "capacityTitle": "Taşıma kapasitesi",
+    "capacityHelp": "Bu aracın kapı tipi başına taşıdığı adet ve boyut sınırları. Azami adet, planlayıcıda ekibin o tipten günlük montajını sınırlar. Boş = sınır yok.",
+    "type": "Kapı tipi",
+    "capMin": "Asgari adet",
+    "capMax": "Azami adet",
+    "capLen": "Azami boy (m)",
+    "dependencyTitle": "Bağımlılıklar",
+    "dependencyHelp": "Bu ekipmanın çalışması için gereken diğer araç/ekipmanları işaretleyin (ör. manlift sepette taşınır, sepet kamyonete bağlanır).",
+    "dependencyNote": "Not (isteğe bağlı)",
+    "noOtherAssets": "Başka araç/ekipman yok.",
+    "saving": "Kaydediliyor…",
+    "saved": "Kaydedildi ✓"
   },
   "orders": {
     "title": "Siparişler",
