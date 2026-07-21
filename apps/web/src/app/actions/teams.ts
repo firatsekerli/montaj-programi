@@ -5,14 +5,48 @@ import { redirect } from "next/navigation";
 import { getCurrentContext } from "@/lib/auth";
 import { createSupabaseServerClient } from "@/lib/supabase/server";
 
+type Supabase = Awaited<ReturnType<typeof createSupabaseServerClient>>;
+
+function num(formData: FormData, key: string): number | null {
+  const raw = String(formData.get(key) ?? "").trim();
+  if (raw === "") return null;
+  const n = Number(raw);
+  return Number.isFinite(n) ? n : null;
+}
+
 function parse(formData: FormData) {
-  const baseLocation = String(formData.get("base_location_id") ?? "").trim();
   return {
     name: String(formData.get("name") ?? "").trim(),
     is_subcontractor: formData.get("is_subcontractor") === "on",
     preference_weight: Number(formData.get("preference_weight") ?? 100),
-    base_location_id: baseLocation || null,
   };
+}
+
+/**
+ * Resolve the team's base location: if a new location name was typed, create it
+ * (with coordinates) and use it; otherwise use the picked existing one.
+ */
+async function resolveBaseLocation(
+  supabase: Supabase,
+  tenantId: string,
+  formData: FormData,
+): Promise<string | null> {
+  const newName = String(formData.get("new_location_name") ?? "").trim();
+  if (newName) {
+    const { data, error } = await supabase
+      .from("location")
+      .insert({
+        tenant_id: tenantId,
+        name: newName,
+        lat: num(formData, "new_location_lat"),
+        lon: num(formData, "new_location_lon"),
+      })
+      .select("id")
+      .single();
+    if (error) throw new Error(error.message);
+    return data.id as string;
+  }
+  return String(formData.get("base_location_id") ?? "").trim() || null;
 }
 
 interface CapabilityInput {
@@ -63,9 +97,10 @@ export async function createTeam(formData: FormData) {
   const { tenantId } = await getCurrentContext();
   if (!tenantId) throw new Error("Kiracı bulunamadı.");
   const supabase = await createSupabaseServerClient();
+  const base_location_id = await resolveBaseLocation(supabase, tenantId, formData);
   const { data, error } = await supabase
     .from("team")
-    .insert({ tenant_id: tenantId, ...parse(formData) })
+    .insert({ tenant_id: tenantId, ...parse(formData), base_location_id })
     .select("id")
     .single();
   if (error) throw new Error(error.message);
@@ -82,8 +117,14 @@ export async function createTeam(formData: FormData) {
 }
 
 export async function updateTeam(id: string, formData: FormData) {
+  const { tenantId } = await getCurrentContext();
+  if (!tenantId) throw new Error("Kiracı bulunamadı.");
   const supabase = await createSupabaseServerClient();
-  const { error } = await supabase.from("team").update(parse(formData)).eq("id", id);
+  const base_location_id = await resolveBaseLocation(supabase, tenantId, formData);
+  const { error } = await supabase
+    .from("team")
+    .update({ ...parse(formData), base_location_id })
+    .eq("id", id);
   if (error) throw new Error(error.message);
 
   await setRelations(
