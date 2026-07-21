@@ -109,6 +109,12 @@ export interface ScheduleInput {
    * can install that type that day.
    */
   resources?: Record<string, string[]>;
+  /**
+   * Overpack tolerance: how much a single team-day may exceed a nominal full
+   * day, as a fraction (0.10 = allow up to 110%). Lets a day absorb travel plus
+   * one more unit that would otherwise spill to the next day. Default 0.
+   */
+  dayFillTolerance?: number;
 }
 
 export interface ScheduleOutput {
@@ -198,15 +204,18 @@ export function schedule(input: ScheduleInput): ScheduleOutput {
   const hoursPerDay = shiftHours(shift);
   const siteCoords = input.siteCoords ?? {};
   const speed = input.avgSpeedKmh ?? 55;
+  // A full day is 1.0; tolerance lets a day pack a little over (e.g. 1.10) so
+  // travel + one more unit fits instead of spilling to the next day.
+  const dayBudget = 1 + Math.max(0, input.dayFillTolerance ?? 0);
 
-  // Per (team, date): remaining budget (1.0) and the day's travel state.
+  // Per (team, date): remaining budget (dayBudget) and the day's travel state.
   const budget = new Map<string, Map<string, number>>();
   const state = new Map<string, Map<string, DayState>>();
   for (const t of teams) {
     const b = new Map<string, number>();
     const s = new Map<string, DayState>();
     for (const d of workingDays) {
-      b.set(d, 1);
+      b.set(d, dayBudget);
       s.set(d, { sites: new Set(), coords: [], tourMin: 0 });
     }
     budget.set(t.id, b);
@@ -214,7 +223,7 @@ export function schedule(input: ScheduleInput): ScheduleOutput {
   }
   for (const c of input.committed ?? []) {
     const b = budget.get(c.teamId);
-    if (b && b.has(c.date)) b.set(c.date, (b.get(c.date) ?? 1) - c.cost);
+    if (b && b.has(c.date)) b.set(c.date, (b.get(c.date) ?? dayBudget) - c.cost);
   }
 
   const fleet: FleetCtx = {
@@ -232,7 +241,7 @@ export function schedule(input: ScheduleInput): ScheduleOutput {
   const loadInWindow = (teamId: string, windowDays: string[]): number => {
     const b = budget.get(teamId)!;
     let load = 0;
-    for (const d of windowDays) load += 1 - (b.get(d) ?? 1);
+    for (const d of windowDays) load += dayBudget - (b.get(d) ?? dayBudget);
     return load;
   };
 
@@ -290,7 +299,7 @@ export function schedule(input: ScheduleInput): ScheduleOutput {
       if ([...remaining.values()].every((r) => r <= 0)) break;
       placeOrderOnTeam(
         order, team, window, remaining, shift, rules, hoursPerDay, budget,
-        state.get(team.id)!, siteCoords, speed, fleet, assignments,
+        state.get(team.id)!, siteCoords, speed, fleet, dayBudget, assignments,
       );
     }
 
@@ -319,6 +328,7 @@ function placeOrderOnTeam(
   siteCoords: Record<string, Coord>,
   speed: number,
   fleet: FleetCtx,
+  dayBudget: number,
   out: PlannedAssignment[],
 ): void {
   const b = budget.get(team.id)!;
@@ -334,7 +344,7 @@ function placeOrderOnTeam(
 
     const placed = placedMap(fleet, team.id, date);
     const st = teamState.get(date)!;
-    let rem = b.get(date) ?? 1;
+    let rem = b.get(date) ?? dayBudget;
     let overheadCharged = st.sites.has(order.siteId);
 
     // Overhead for adding this site to the day = the extra driving it adds to

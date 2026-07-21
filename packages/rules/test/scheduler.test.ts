@@ -276,6 +276,32 @@ describe("fleet enforcement", () => {
     expect(assignments[0]!.assetIds).toEqual(["truck-1", "manlift-1"]);
   });
 
+  it("lets an overpack tolerance fit one more unit per day", () => {
+    // 7/day fire door, single site with a base→site round trip. Without
+    // tolerance, travel pushes the 7th door to the next day (6/day). A 10%
+    // tolerance lets the day pack to 110%, so all 7 fit in one day.
+    const base = { lat: 39.95, lon: 32.85 };
+    const S = { lat: 39.99, lon: 32.9 }; // a few km out → a real round trip
+    const oneDay = HORIZON.slice(0, 1);
+    const mk = (tol: number) =>
+      schedule({
+        workingDays: oneDay,
+        shift: dimakShift,
+        rules: dimakRules,
+        teams: [team({ baseCoord: base })],
+        siteCoords: { S },
+        dayFillTolerance: tol,
+        orders: [
+          order({ siteId: "S", earliestDate: oneDay[0]!, deliveryDate: oneDay[0]!,
+            lines: [{ orderLineId: "l1", type: fullFrameSingleFire, quantity: 7, facts: {} }] }),
+        ],
+      });
+    const without = mk(0).assignments.reduce((s, a) => s + a.units, 0);
+    const withTol = mk(0.1).assignments.reduce((s, a) => s + a.units, 0);
+    expect(without).toBeLessThan(7); // travel bumps the last door to a later day
+    expect(withTol).toBe(7); // the tolerance absorbs travel + the 7th door
+  });
+
   it("does not enforce a required resource when no pool is configured", () => {
     // requiredResource set but caller passed no resources → pre-fleet behavior.
     const industrialManlift: WorkItemType = { ...industrialDoor, requiredResource: "manlift" };

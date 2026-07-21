@@ -32,6 +32,8 @@ export interface PlanningContext {
   avgSpeedKmh: number;
   /** Shared resource pools by kind → available asset ids (e.g. manlifts). */
   resources: Record<string, string[]>;
+  /** Overpack tolerance (0.10 = a day may pack up to 110%). */
+  dayFillTolerance: number;
 }
 
 export async function buildPlanningContext(supabase: Supabase): Promise<PlanningContext> {
@@ -63,6 +65,14 @@ export async function buildPlanningContext(supabase: Supabase): Promise<Planning
   for (const c of (capRows ?? []) as Array<{ team_id: string; work_item_type_id: string; daily_cap: number | null }>) {
     if (c.daily_cap != null) (capByTeam[c.team_id] ??= {})[c.work_item_type_id] = c.daily_cap;
   }
+  // Overpack tolerance (0012) — fetched tolerantly so a lagging migration falls
+  // back to strict 100% days rather than breaking the whole context load.
+  const { data: tolRow } = await supabase
+    .from("tenant_setting")
+    .select("day_fill_tolerance")
+    .maybeSingle();
+  const dayFillTolerance = Number((tolRow as { day_fill_tolerance?: number } | null)?.day_fill_tolerance ?? 0);
+
   const { data: locRows } = await supabase.from("location").select("id, lat, lon");
   const locCoords: Record<string, Coord> = {};
   for (const l of (locRows ?? []) as Array<{ id: string; lat: number | null; lon: number | null }>) {
@@ -177,7 +187,10 @@ export async function buildPlanningContext(supabase: Supabase): Promise<Planning
     };
   });
 
-  return { typeMap, rules, shift, teams, calendar, siteCoords, avgSpeedKmh: AVG_KMH, resources };
+  return {
+    typeMap, rules, shift, teams, calendar, siteCoords,
+    avgSpeedKmh: AVG_KMH, resources, dayFillTolerance,
+  };
 }
 
 export function lineFacts(

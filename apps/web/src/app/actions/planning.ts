@@ -130,6 +130,7 @@ export async function generatePlan() {
     siteCoords: ctx.siteCoords,
     avgSpeedKmh: ctx.avgSpeedKmh,
     resources: ctx.resources,
+    dayFillTolerance: ctx.dayFillTolerance,
   });
 
   const deliveryByOrder = new Map((orders ?? []).map((o) => [o.code, o.delivery_date] as const));
