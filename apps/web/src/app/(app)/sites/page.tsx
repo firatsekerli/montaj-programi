@@ -7,10 +7,15 @@ export default async function SitesPage() {
   const t = await getTranslations("sites");
   const tc = await getTranslations("crud");
   const supabase = await createSupabaseServerClient();
-  const { data: rows } = await supabase
-    .from("site")
-    .select("id, name, access_overhead_min")
-    .order("name");
+  // Include `district` (0015) when present; fall back if the migration is behind.
+  let rows = (
+    await supabase.from("site").select("id, name, access_overhead_min, district").order("name")
+  ).data as Array<{ id: string; name: string; access_overhead_min: number; district?: string | null }> | null;
+  if (!rows) {
+    rows = (
+      await supabase.from("site").select("id, name, access_overhead_min").order("name")
+    ).data as typeof rows;
+  }
 
   return (
     <main>
@@ -26,6 +31,7 @@ export default async function SitesPage() {
           <thead>
             <tr>
               <th>{t("name")}</th>
+              <th>{t("district")}</th>
               <th className="num-h">{t("accessOverhead")}</th>
               <th />
             </tr>
@@ -34,6 +40,7 @@ export default async function SitesPage() {
             {(rows ?? []).map((r) => (
               <tr key={r.id}>
                 <td>{r.name}</td>
+                <td className="muted-cell">{r.district ?? "—"}</td>
                 <td className="num">
                   {r.access_overhead_min} {t("min")}
                 </td>
@@ -49,7 +56,7 @@ export default async function SitesPage() {
             ))}
             {(!rows || rows.length === 0) && (
               <tr>
-                <td colSpan={3} className="empty">
+                <td colSpan={4} className="empty">
                   {tc("empty")}
                 </td>
               </tr>

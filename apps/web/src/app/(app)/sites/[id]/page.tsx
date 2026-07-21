@@ -22,8 +22,7 @@ export default async function EditSitePage({ params }: { params: Promise<{ id: s
         defaults={{
           name: row.name,
           accessOverhead: row.access_overhead_min,
-          lat: row.lat,
-          lon: row.lon,
+          district: row.district ?? null,
         }}
       />
     </main>
