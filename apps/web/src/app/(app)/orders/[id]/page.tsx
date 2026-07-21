@@ -20,12 +20,13 @@ export default async function EditOrderPage({ params }: { params: Promise<{ id: 
   ]);
   if (!row) notFound();
 
-  const lines = (row.order_line ?? []).map(
-    (l: { work_item_type_id: string; quantity: number }) => ({
-      work_item_type_id: l.work_item_type_id,
-      quantity: l.quantity,
-    }),
-  );
+  // Collapse any duplicate-type rows (from the old accumulating-save bug) so the
+  // form shows one line per type; saving then persists the cleaned-up set.
+  const byType = new Map<string, number>();
+  for (const l of (row.order_line ?? []) as Array<{ work_item_type_id: string; quantity: number }>) {
+    byType.set(l.work_item_type_id, l.quantity);
+  }
+  const lines = [...byType].map(([work_item_type_id, quantity]) => ({ work_item_type_id, quantity }));
 
   return (
     <main>

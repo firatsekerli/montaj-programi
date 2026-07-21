@@ -29,11 +29,73 @@ function parse(formData: FormData) {
 function parseLines(formData: FormData): LineInput[] {
   try {
     const raw = JSON.parse(String(formData.get("lines") ?? "[]")) as LineInput[];
-    return raw
-      .filter((l) => l.work_item_type_id && Number(l.quantity) > 0)
-      .map((l) => ({ work_item_type_id: l.work_item_type_id, quantity: Number(l.quantity) }));
+    // Collapse to one line per type (a type is "type × quantity"; the same type
+    // twice is a data-entry slip). Last occurrence wins — we never sum, so an
+    // accidental duplicate can't silently inflate the order.
+    const byType = new Map<string, number>();
+    for (const l of raw) {
+      if (!l.work_item_type_id || Number(l.quantity) <= 0) continue;
+      byType.set(l.work_item_type_id, Number(l.quantity));
+    }
+    return [...byType].map(([work_item_type_id, quantity]) => ({ work_item_type_id, quantity }));
   } catch {
     return [];
+  }
+}
+
+/**
+ * Reconcile an order's lines to `desired` WITHOUT a blind delete-all/insert-all.
+ * Kept lines are updated in place so their id (and any assignments referencing
+ * it) survives an unrelated edit; only genuinely removed/duplicate rows are
+ * deleted — and their assignments are cleared first so the FK can't block it.
+ * This is what stops saves from accumulating duplicate lines once a plan exists.
+ */
+async function reconcileLines(
+  supabase: Supabase,
+  tenantId: string,
+  orderId: string,
+  desired: LineInput[],
+) {
+  const { data: existing } = await supabase
+    .from("order_line")
+    .select("id, work_item_type_id, quantity")
+    .eq("order_id", orderId);
+  const rows = (existing ?? []) as Array<{ id: string; work_item_type_id: string; quantity: number }>;
+
+  // One surviving row per type; any extra rows of a type are duplicates to drop.
+  const keep = new Map<string, { id: string; quantity: number }>();
+  const removeIds: string[] = [];
+  for (const r of rows) {
+    if (keep.has(r.work_item_type_id)) removeIds.push(r.id);
+    else keep.set(r.work_item_type_id, { id: r.id, quantity: r.quantity });
+  }
+  const desiredTypes = new Set(desired.map((d) => d.work_item_type_id));
+  for (const [type, r] of keep) if (!desiredTypes.has(type)) removeIds.push(r.id);
+
+  if (removeIds.length) {
+    // Assignments reference order_line (no cascade) — clear them before deleting.
+    const { error: ae } = await supabase.from("assignment").delete().in("order_line_id", removeIds);
+    if (ae) throw new Error(ae.message);
+    const { error: le } = await supabase.from("order_line").delete().in("id", removeIds);
+    if (le) throw new Error(le.message);
+  }
+
+  for (const d of desired) {
+    const kept = keep.get(d.work_item_type_id);
+    if (kept && !removeIds.includes(kept.id)) {
+      if (kept.quantity !== d.quantity) {
+        const { error } = await supabase
+          .from("order_line")
+          .update({ quantity: d.quantity })
+          .eq("id", kept.id);
+        if (error) throw new Error(error.message);
+      }
+    } else {
+      const { error } = await supabase
+        .from("order_line")
+        .insert({ tenant_id: tenantId, order_id: orderId, ...d });
+      if (error) throw new Error(error.message);
+    }
   }
 }
 
@@ -158,13 +220,7 @@ export async function updateOrder(id: string, formData: FormData) {
     .eq("id", id);
   if (error) throw new Error(error.message);
 
-  await supabase.from("order_line").delete().eq("order_id", id);
-  if (lines.length) {
-    const { error: le } = await supabase
-      .from("order_line")
-      .insert(lines.map((l) => ({ tenant_id: tenantId, order_id: id, ...l })));
-    if (le) throw new Error(le.message);
-  }
+  await reconcileLines(supabase, tenantId, id, lines);
   await upsertProductionTask(supabase, tenantId, id, values.code, productionDue);
 
   revalidatePath("/orders");

@@ -50,7 +50,13 @@ export function OrderForm({
     setLines((prev) => prev.map((l, idx) => (idx === i ? { ...l, ...patch } : l)));
   }
   function addLine() {
-    setLines((prev) => [...prev, { work_item_type_id: types[0]?.id ?? "", quantity: 1 }]);
+    setLines((prev) => {
+      // Each type appears at most once — add the first type not already on a line.
+      const used = new Set(prev.map((l) => l.work_item_type_id));
+      const next = types.find((ty) => !used.has(ty.id));
+      if (!next) return prev; // every type is already listed
+      return [...prev, { work_item_type_id: next.id, quantity: 1 }];
+    });
   }
   function removeLine(i: number) {
     setLines((prev) => prev.filter((_, idx) => idx !== i));
@@ -131,11 +137,17 @@ export function OrderForm({
               value={line.work_item_type_id}
               onChange={(e) => updateLine(i, { work_item_type_id: e.target.value })}
             >
-              {types.map((ty) => (
-                <option key={ty.id} value={ty.id}>
-                  {ty.name}
-                </option>
-              ))}
+              {types
+                .filter(
+                  (ty) =>
+                    ty.id === line.work_item_type_id ||
+                    !lines.some((o, oi) => oi !== i && o.work_item_type_id === ty.id),
+                )
+                .map((ty) => (
+                  <option key={ty.id} value={ty.id}>
+                    {ty.name}
+                  </option>
+                ))}
             </select>
             <input
               type="number"
@@ -154,7 +166,12 @@ export function OrderForm({
             </button>
           </div>
         ))}
-        <button type="button" className="btn-ghost" onClick={addLine}>
+        <button
+          type="button"
+          className="btn-ghost"
+          onClick={addLine}
+          disabled={lines.length >= types.length}
+        >
           + {t("addLine")}
         </button>
       </fieldset>
