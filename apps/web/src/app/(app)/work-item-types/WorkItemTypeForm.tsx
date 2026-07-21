@@ -14,6 +14,8 @@ export interface WorkItemTypeDefaults {
   scaleAttr?: string;
   scaleCoefficient?: number;
   requiredResource?: string;
+  crewBaseline?: number;
+  perPersonBonus?: number;
 }
 
 export function WorkItemTypeForm({
@@ -94,6 +96,30 @@ export function WorkItemTypeForm({
           <span className="help">{t("scaleHelp")}</span>
         </>
       )}
+
+      <div className="row-2">
+        <label>
+          {t("crewBaseline")}
+          <input
+            name="crewBaseline"
+            type="number"
+            min="1"
+            step="1"
+            defaultValue={defaults.crewBaseline ?? 2}
+          />
+        </label>
+        <label>
+          {t("perPersonBonus")}
+          <input
+            name="perPersonBonus"
+            type="number"
+            min="0"
+            step="0.1"
+            defaultValue={defaults.perPersonBonus ?? 0}
+          />
+        </label>
+      </div>
+      <span className="help">{t("crewScalingHelp")}</span>
 
       <label>
         {t("requiredResource")}

@@ -104,12 +104,17 @@ begin
      '{"op":"multiply_capacity","factor":0.8}'),
     (v_tenant, 'Kapı sökme / duvar kırma (-%50)', 20, 'global',
      '{"all":[{"var":"order.requires_demolition","op":"==","value":true}]}',
-     '{"op":"multiply_capacity","factor":0.5}'),
-    (v_tenant, '3 kişilik ekip (+1.5 adet)', 30, 'global',
-     '{"all":[{"var":"team.headcount","op":">=","value":3}]}',
-     '{"op":"add_units","n":1.5}');
-  -- (Industrial sizing is continuous via the type's effort.perAttr; no bucket
-  -- rule needed.)
+     '{"op":"multiply_capacity","factor":0.5}');
+  -- Crew scaling is a per-type property now (crew_baseline + per_person_bonus,
+  -- set below), so the old global "3-person team +1.5" rule is gone. Industrial
+  -- sizing is continuous via the type's effort.perAttr; no bucket rule needed.
+
+  -- Base counts assume a 2-person crew; each extra person adds units/day
+  -- (fire doors +2, industrial +1 — from the spec table).
+  update work_item_type set crew_baseline = 2, per_person_bonus = 2
+    where tenant_id = v_tenant and id in (v_half_single, v_full_single, v_half_double, v_full_double);
+  update work_item_type set crew_baseline = 2, per_person_bonus = 1
+    where tenant_id = v_tenant and id = v_industrial;
 
   -- People --------------------------------------------------------------------
   insert into person (tenant_id, name, is_lead) values (v_tenant, 'Kazım', true) returning id into v_kazim;

@@ -123,6 +123,8 @@ export async function buildPlanningContext(supabase: Supabase): Promise<Planning
       baseCapacity: row.base_capacity ?? undefined,
       effort: row.effort ?? undefined,
       requiredResource: row.required_resource ?? undefined,
+      crewBaseline: row.crew_baseline ?? undefined,
+      perPersonBonus: row.per_person_bonus ?? undefined,
     });
   }
 

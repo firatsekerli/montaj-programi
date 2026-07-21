@@ -36,6 +36,8 @@ export default async function EditWorkItemTypePage({
           scaleAttr: row.effort?.perAttr?.attr?.replace(/^line\./, ""),
           scaleCoefficient: row.effort?.perAttr?.coefficient,
           requiredResource: row.required_resource ?? "",
+          crewBaseline: row.crew_baseline ?? 2,
+          perPersonBonus: row.per_person_bonus ?? 0,
         }}
       />
     </main>

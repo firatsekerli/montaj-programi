@@ -36,6 +36,16 @@ export interface WorkItemType {
    * such resources caps how many teams can install this type in parallel.
    */
   requiredResource?: string;
+  /**
+   * Crew size the base numbers assume (Dimak spec: a 2-person team). Default 2.
+   */
+  crewBaseline?: number;
+  /**
+   * Extra units/day gained per person ABOVE `crewBaseline` (e.g. fire door +2,
+   * industrial +1). Scales the daily count with the team's headcount; 0 = no
+   * crew scaling. Applies to both count and effort types.
+   */
+  perPersonBonus?: number;
 }
 
 export interface ShiftContext {

@@ -21,6 +21,8 @@ function parseForm(formData: FormData) {
     base_capacity: null as Record<string, number> | null,
     effort: null as Record<string, unknown> | null,
     required_resource: String(formData.get("requiredResource") ?? "").trim() || null,
+    crew_baseline: Math.max(1, Math.round(Number(formData.get("crewBaseline") ?? 2)) || 2),
+    per_person_bonus: Math.max(0, Number(formData.get("perPersonBonus") ?? 0) || 0),
   };
   if (capacityModel === "count") {
     base.base_capacity = {

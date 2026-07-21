@@ -20,14 +20,28 @@ function applicableRules(rules: CapacityRule[], facts: Facts): CapacityRule[] {
 }
 
 /**
+ * Extra units/day this team-day earns from crew size: `perPersonBonus` for each
+ * person above `crewBaseline` (default 2 = the crew the base numbers assume).
+ * Missing `team.headcount` → no bonus, so table lookups stay at the base rate.
+ */
+function crewBonus(type: WorkItemType, facts: Facts): number {
+  const perPerson = type.perPersonBonus ?? 0;
+  if (perPerson === 0) return 0;
+  const baseline = type.crewBaseline ?? 2;
+  const headcount = Number(facts["team.headcount"] ?? baseline);
+  if (!Number.isFinite(headcount)) return 0;
+  return perPerson * Math.max(0, headcount - baseline);
+}
+
+/**
  * Effective units-per-day for a COUNT-model type, after modifiers.
  *
  * rate = baseRate * Π(multiply_capacity factors) + Σ(add_units)
  *
- * Example (Dimak): full-frame single-leaf fire door = 7/day normal.
+ * Example (Dimak): full-frame single-leaf fire door = 7/day normal (2-person crew).
  *   oversize (-20%)   -> 7 * 0.8            = 5.6
  *   demolition (-50%) -> 7 * 0.5            = 3.5
- *   3-person team     -> 7 + 1.5            = 8.5
+ *   3-person team     -> 7 + 2 (per-person) = 9
  */
 export function effectiveRate(
   type: WorkItemType,
@@ -46,7 +60,9 @@ export function effectiveRate(
     if (rule.effect.op === "multiply_capacity") factor *= rule.effect.factor;
     else if (rule.effect.op === "add_units") add += rule.effect.n;
   }
-  return Math.max(0, base * factor + add);
+  // Crew bonus is a flat per-headcount addition (like add_units), so a
+  // demolition multiplier doesn't erase the extra person's throughput.
+  return Math.max(0, base * factor + add + crewBonus(type, facts));
 }
 
 /** Effort hours to install one unit of an EFFORT-model type, after modifiers. */
@@ -83,7 +99,12 @@ export function unitCostDays(
     const rate = effectiveRate(type, shift, rules, facts);
     return rate > 0 ? 1 / rate : Number.POSITIVE_INFINITY;
   }
-  return effectiveEffortHours(type, rules, facts) / shiftHours(shift);
+  const cost = effectiveEffortHours(type, rules, facts) / shiftHours(shift);
+  // Effort types scale with crew too: convert to a daily rate, add the crew
+  // bonus (units/day), convert back — so "+1 per person" means one more per day.
+  const bonus = crewBonus(type, facts);
+  if (bonus > 0 && Number.isFinite(cost) && cost > 0) return 1 / (1 / cost + bonus);
+  return cost;
 }
 
 /**

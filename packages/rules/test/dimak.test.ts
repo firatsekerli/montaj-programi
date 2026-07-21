@@ -16,7 +16,6 @@ import {
   halfBlockSingleFire,
   industrialDoor,
   overtimeShift,
-  teamOfThreeRule,
 } from "./dimak.fixtures";
 
 describe("Dimak capacity table (from the spec)", () => {
@@ -63,21 +62,25 @@ describe("Modifier rules", () => {
     ).toBeCloseTo(3.5, 10);
   });
 
-  it("3-person team adds ~1.5 units", () => {
+  it("3-person crew adds the fire-door per-person bonus (7 + 2 = 9)", () => {
     expect(
       dailyCapacity(fullFrameSingleFire, dimakShift, dimakRules, {
         "team.headcount": 3,
       }),
-    ).toBeCloseTo(8.5, 10);
+    ).toBeCloseTo(9, 10);
+    // 4 people -> +2 per extra person over the 2-person baseline = 7 + 4 = 11
+    expect(
+      dailyCapacity(fullFrameSingleFire, dimakShift, dimakRules, { "team.headcount": 4 }),
+    ).toBeCloseTo(11, 10);
   });
 
-  it("modifiers stack: demolition then team-of-3 = 7*0.5 + 1.5 = 5", () => {
+  it("crew bonus is flat, not halved by demolition: 7*0.5 + 2 = 5.5", () => {
     expect(
-      dailyCapacity(fullFrameSingleFire, dimakShift, [demolitionRule, teamOfThreeRule], {
+      dailyCapacity(fullFrameSingleFire, dimakShift, [demolitionRule], {
         "order.requires_demolition": true,
         "team.headcount": 3,
       }),
-    ).toBeCloseTo(5, 10);
+    ).toBeCloseTo(5.5, 10);
   });
 });
 
@@ -102,6 +105,12 @@ describe("Industrial door (effort model)", () => {
       9 / 7.3125,
       10,
     );
+  });
+
+  it("a 3rd person adds +1/day (5x5 m: 1/day → 2/day)", () => {
+    expect(
+      dailyCapacity(industrialDoor, dimakShift, dimakRules, { "line.area_m2": 25, "team.headcount": 3 }),
+    ).toBeCloseTo(2, 10);
   });
 });
 
