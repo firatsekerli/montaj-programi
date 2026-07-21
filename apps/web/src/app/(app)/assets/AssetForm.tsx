@@ -42,7 +42,7 @@ export async function AssetForm({
   const t = await getTranslations("assets");
   const carryCap = defaults.carryCap ?? {};
   return (
-    <form action={action} className="form panel">
+    <form action={action} className="form form-wide panel">
       <label>
         {t("name")}
         <input name="name" defaultValue={defaults.name} required />

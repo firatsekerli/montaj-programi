@@ -57,7 +57,7 @@ export function OrderForm({
   }
 
   return (
-    <form action={action} className="form panel">
+    <form action={action} className="form form-wide panel">
       <input type="hidden" name="lines" value={JSON.stringify(lines)} />
 
       <label>

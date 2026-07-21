@@ -11,7 +11,7 @@ export async function PersonForm({
 }) {
   const t = await getTranslations("people");
   return (
-    <form action={action} className="form panel">
+    <form action={action} className="form form-wide panel">
       <label>
         {t("name")}
         <input name="name" defaultValue={defaults.name} required />

@@ -276,9 +276,11 @@ tr:last-child td {
   color: var(--text);
   font: inherit;
 }
-/* Submit button on admin forms: auto width, left-aligned (not full-width). */
+/* Submit button on admin forms: auto width, left-aligned (not full-width).
+   justify-self keeps it compact when the form is a grid (form-wide). */
 .form.panel button[type="submit"] {
   align-self: flex-start;
+  justify-self: start;
   padding-inline: 1.4rem;
 }
 .form .row-2 {
@@ -286,10 +288,24 @@ tr:last-child td {
   grid-template-columns: 1fr 1fr;
   gap: 0.75rem;
 }
-/* Full-width, two-column form (e.g. team editor) */
+/* Full-width form that fills the content area (team editor + all admin forms).
+   Simple fields tile into responsive columns; structural blocks span the row. */
 .form.form-wide {
   max-width: none;
   width: 100%;
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(min(100%, 300px), 1fr));
+  gap: 0.9rem 1.5rem;
+  align-items: start;
+}
+.form.form-wide > .form-cols,
+.form.form-wide > fieldset,
+.form.form-wide > .row-2,
+.form.form-wide > .help,
+.form.form-wide > .field-label,
+.form.form-wide > .note,
+.form.form-wide > button[type="submit"] {
+  grid-column: 1 / -1;
 }
 .form-cols {
   display: grid;

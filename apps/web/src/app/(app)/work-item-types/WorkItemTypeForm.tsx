@@ -29,7 +29,7 @@ export function WorkItemTypeForm({
   const [model, setModel] = useState<"count" | "effort">(defaults.capacityModel ?? "count");
 
   return (
-    <form action={action} className="form panel">
+    <form action={action} className="form form-wide panel">
       <label>
         {t("name")}
         <input name="name" defaultValue={defaults.name} required />
