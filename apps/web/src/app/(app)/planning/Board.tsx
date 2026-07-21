@@ -137,11 +137,13 @@ function Cell({
   return (
     <div ref={setNodeRef} className={`board-cell drop${isOver ? " over" : ""}`}>
       <div className="usage">
-        <div
-          className={`usage-bar${over ? " over-cap" : ""}`}
-          style={{ width: `${Math.min(usage, 1) * 100}%` }}
-        />
-        <span className="usage-pct">{Math.round(usage * 100)}%</span>
+        <span className={`usage-pct${over ? " over-cap" : ""}`}>{Math.round(usage * 100)}%</span>
+        <div className="usage-track">
+          <div
+            className={`usage-bar${over ? " over-cap" : ""}`}
+            style={{ width: `${Math.min(usage, 1) * 100}%` }}
+          />
+        </div>
       </div>
       {cards.map((c) => (
         <Card key={c.id} a={c} onUnpin={onUnpin} />

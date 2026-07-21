@@ -582,11 +582,16 @@ label.checkbox input {
   outline-offset: -2px;
 }
 .usage {
-  position: relative;
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  margin-bottom: 0.25rem;
+}
+.usage-track {
   height: 5px;
   background: var(--panel-2);
   border-radius: 3px;
-  margin-bottom: 0.15rem;
+  overflow: hidden;
 }
 .usage-bar {
   height: 100%;
@@ -597,11 +602,13 @@ label.checkbox input {
   background: var(--danger);
 }
 .usage-pct {
-  position: absolute;
-  top: -1px;
-  inset-inline-end: 0;
+  align-self: flex-end;
   font-size: 0.65rem;
+  line-height: 1;
   color: var(--muted);
+}
+.usage-pct.over-cap {
+  color: var(--danger);
 }
 .card-plan {
   background: var(--panel-2);
