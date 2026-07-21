@@ -1,11 +1,15 @@
 "use client";
 
-import { useRef, useState } from "react";
+import { useRef, useState, useTransition } from "react";
+import { useRouter } from "next/navigation";
 import { useTranslations } from "next-intl";
+import { updateLocation } from "@/app/actions/locations";
 
-interface Option {
+export interface LocationOption {
   id: string;
   name: string | null;
+  lat?: number | null;
+  lon?: number | null;
 }
 interface Draft {
   name: string;
@@ -14,29 +18,52 @@ interface Draft {
 }
 
 /**
- * Base-location picker: choose an existing location, or add a new one via a
- * modal. A staged new location submits with the team form (new_location_*),
- * which the team action turns into a real location row.
+ * Base-location picker: choose an existing location, EDIT the selected one, or
+ * add a new one — all via one modal. A new location is staged and submitted
+ * with the team form; editing an existing one saves immediately.
  */
 export function BaseLocationField({
   locations,
   defaultLocationId,
 }: {
-  locations: Option[];
+  locations: LocationOption[];
   defaultLocationId?: string | null;
 }) {
   const t = useTranslations("teams");
+  const router = useRouter();
   const dialogRef = useRef<HTMLDialogElement>(null);
+  const [, startTransition] = useTransition();
+  const [selectedId, setSelectedId] = useState(defaultLocationId ?? "");
   const [staged, setStaged] = useState<Draft | null>(null);
+  const [mode, setMode] = useState<"new" | "edit">("new");
   const [draft, setDraft] = useState<Draft>({ name: "", lat: "", lon: "" });
 
-  function open() {
-    setDraft(staged ?? { name: "", lat: "", lon: "" });
+  function openNew() {
+    setMode("new");
+    setDraft({ name: "", lat: "", lon: "" });
+    dialogRef.current?.showModal();
+  }
+  function openEdit() {
+    const loc = locations.find((l) => l.id === selectedId);
+    if (!loc) return;
+    setMode("edit");
+    setDraft({
+      name: loc.name ?? "",
+      lat: loc.lat != null ? String(loc.lat) : "",
+      lon: loc.lon != null ? String(loc.lon) : "",
+    });
     dialogRef.current?.showModal();
   }
   function confirm() {
     if (!draft.name.trim()) return;
-    setStaged({ ...draft });
+    if (mode === "new") {
+      setStaged({ ...draft });
+    } else {
+      startTransition(async () => {
+        await updateLocation(selectedId, draft);
+        router.refresh();
+      });
+    }
     dialogRef.current?.close();
   }
 
@@ -54,7 +81,11 @@ export function BaseLocationField({
             </button>
           </div>
         ) : (
-          <select name="base_location_id" defaultValue={defaultLocationId ?? ""}>
+          <select
+            name="base_location_id"
+            value={selectedId}
+            onChange={(e) => setSelectedId(e.target.value)}
+          >
             <option value="">—</option>
             {locations.map((l) => (
               <option key={l.id} value={l.id}>
@@ -66,10 +97,6 @@ export function BaseLocationField({
         <span className="help">{t("baseLocationHelp")}</span>
       </label>
 
-      <button type="button" className="btn-ghost" onClick={open}>
-        {t("newLocation")}
-      </button>
-
       {staged && (
         <>
           <input type="hidden" name="new_location_name" value={staged.name} />
@@ -78,8 +105,19 @@ export function BaseLocationField({
         </>
       )}
 
+      <div className="loc-actions">
+        {!staged && selectedId && (
+          <button type="button" className="btn-ghost" onClick={openEdit}>
+            {t("editLocation")}
+          </button>
+        )}
+        <button type="button" className="btn-ghost" onClick={openNew}>
+          {t("newLocation")}
+        </button>
+      </div>
+
       <dialog ref={dialogRef} className="modal">
-        <h3>{t("newLocationTitle")}</h3>
+        <h3>{mode === "edit" ? t("editLocationTitle") : t("newLocationTitle")}</h3>
         <label>
           {t("newLocationName")}
           <input
@@ -114,7 +152,7 @@ export function BaseLocationField({
             {t("cancel")}
           </button>
           <button type="button" className="btn" onClick={confirm}>
-            {t("addLocation")}
+            {mode === "edit" ? t("saveLocation") : t("addLocation")}
           </button>
         </div>
       </dialog>

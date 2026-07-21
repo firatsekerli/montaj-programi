@@ -19,7 +19,7 @@ export default async function EditTeamPage({ params }: { params: Promise<{ id: s
       .maybeSingle(),
     supabase.from("person").select("id, name").order("name"),
     supabase.from("work_item_type").select("id, name").order("name"),
-    supabase.from("location").select("id, name").order("name"),
+    supabase.from("location").select("id, name, lat, lon").order("name"),
   ]);
   if (!row) notFound();
 

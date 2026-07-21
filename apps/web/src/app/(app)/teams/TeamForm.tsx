@@ -1,5 +1,5 @@
 import { getTranslations } from "next-intl/server";
-import { BaseLocationField } from "./BaseLocationField";
+import { BaseLocationField, type LocationOption } from "./BaseLocationField";
 
 interface Option {
   id: string;
@@ -17,7 +17,7 @@ export async function TeamForm({
   action: (formData: FormData) => void | Promise<void>;
   people: Option[];
   types: Option[];
-  locations: Option[];
+  locations: LocationOption[];
   defaults?: {
     name?: string;
     isSubcontractor?: boolean;

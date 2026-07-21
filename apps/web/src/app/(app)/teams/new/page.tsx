@@ -10,7 +10,7 @@ export default async function NewTeamPage() {
   const [{ data: people }, { data: types }, { data: locations }] = await Promise.all([
     supabase.from("person").select("id, name").order("name"),
     supabase.from("work_item_type").select("id, name").order("name"),
-    supabase.from("location").select("id, name").order("name"),
+    supabase.from("location").select("id, name, lat, lon").order("name"),
   ]);
 
   return (
