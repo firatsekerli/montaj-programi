@@ -12,7 +12,7 @@ import {
   useSensors,
   type DragEndEvent,
 } from "@dnd-kit/core";
-import { moveAssignment } from "@/app/actions/planning";
+import { moveAssignment, unpinAssignment } from "@/app/actions/planning";
 
 export interface BoardAssignment {
   id: string;
@@ -66,6 +66,14 @@ export function PlanningBoard({
     });
   }
 
+  function onUnpin(id: string) {
+    setItems((prev) => prev.map((a) => (a.id === id ? { ...a, manual: false } : a)));
+    startTransition(async () => {
+      await unpinAssignment(id);
+      router.refresh();
+    });
+  }
+
   return (
     <DndContext sensors={sensors} onDragEnd={onDragEnd}>
       <div className="board-scroll">
@@ -82,7 +90,7 @@ export function PlanningBoard({
           ))}
 
           {teams.map((team) => (
-            <BoardRow key={team.id} team={team} weekDays={weekDays} items={items} />
+            <BoardRow key={team.id} team={team} weekDays={weekDays} items={items} onUnpin={onUnpin} />
           ))}
         </div>
       </div>
@@ -94,10 +102,12 @@ function BoardRow({
   team,
   weekDays,
   items,
+  onUnpin,
 }: {
   team: TeamRow;
   weekDays: string[];
   items: BoardAssignment[];
+  onUnpin: (id: string) => void;
 }) {
   return (
     <>
@@ -105,7 +115,7 @@ function BoardRow({
       {weekDays.map((d) => {
         const cell = items.filter((a) => a.teamId === team.id && a.date === d);
         const usage = cell.reduce((s, a) => s + a.cost, 0);
-        return <Cell key={d} cellId={`${team.id}|${d}`} usage={usage} cards={cell} />;
+        return <Cell key={d} cellId={`${team.id}|${d}`} usage={usage} cards={cell} onUnpin={onUnpin} />;
       })}
     </>
   );
@@ -115,10 +125,12 @@ function Cell({
   cellId,
   usage,
   cards,
+  onUnpin,
 }: {
   cellId: string;
   usage: number;
   cards: BoardAssignment[];
+  onUnpin: (id: string) => void;
 }) {
   const { setNodeRef, isOver } = useDroppable({ id: cellId });
   const over = usage > 1.0001;
@@ -132,13 +144,13 @@ function Cell({
         <span className="usage-pct">{Math.round(usage * 100)}%</span>
       </div>
       {cards.map((c) => (
-        <Card key={c.id} a={c} />
+        <Card key={c.id} a={c} onUnpin={onUnpin} />
       ))}
     </div>
   );
 }
 
-function Card({ a }: { a: BoardAssignment }) {
+function Card({ a, onUnpin }: { a: BoardAssignment; onUnpin: (id: string) => void }) {
   const t = useTranslations("planning");
   const { attributes, listeners, setNodeRef, transform, isDragging } = useDraggable({ id: a.id });
   const style = transform
@@ -155,9 +167,18 @@ function Card({ a }: { a: BoardAssignment }) {
       <strong>
         {a.orderCode}
         {a.manual && (
-          <span className="pin" title={t("pinned")}>
+          <button
+            type="button"
+            className="pin"
+            title={t("unpin")}
+            onPointerDown={(e) => e.stopPropagation()}
+            onClick={(e) => {
+              e.stopPropagation();
+              onUnpin(a.id);
+            }}
+          >
             📌
-          </span>
+          </button>
         )}
       </strong>
       <span className="card-line">

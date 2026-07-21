@@ -711,10 +711,20 @@ label.checkbox input {
 }
 
 /* ---- Pinned (manually-moved) plan cards ---- */
-.card-plan .pin {
+button.pin {
   margin-inline-start: 0.35rem;
+  padding: 0 0.15rem;
   font-size: 0.75rem;
+  line-height: 1;
   vertical-align: middle;
+  background: none;
+  border: none;
+  cursor: pointer;
+  opacity: 0.9;
+}
+button.pin:hover {
+  opacity: 1;
+  filter: brightness(1.2);
 }
 
 /* ---- Month calendar (dashboard) ---- */

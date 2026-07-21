@@ -245,6 +245,16 @@ export async function moveAssignment(assignmentId: string, teamId: string, date:
   revalidatePath("/planning");
 }
 
+/**
+ * Release a manually-pinned card back to auto-planning: clear its `manual` flag
+ * so the next "Yeniden Oluştur" recomputes it. Tolerant of a lagging migration.
+ */
+export async function unpinAssignment(assignmentId: string) {
+  const supabase = await createSupabaseServerClient();
+  await supabase.from("assignment").update({ manual: false }).eq("id", assignmentId);
+  revalidatePath("/planning");
+}
+
 /** Clear not-started assignments (keeps started/completed). */
 export async function clearPlan() {
   const { tenantId } = await getCurrentContext();

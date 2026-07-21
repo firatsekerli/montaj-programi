@@ -240,6 +240,7 @@
     "noTeams": "Önce en az bir ekip ekleyin.",
     "dayShare": "{pct}% gün",
     "pinned": "Elle yerleştirildi — yeniden oluşturmada korunur",
+    "unpin": "Sabitlemeyi kaldır (yeniden oluşturmada motor yeniden planlar)",
     "unplacedTitle": "Planlanamayan siparişler",
     "unplacedNote": "Aşağıdaki kalemler bu haftaya yerleştirilemedi:",
     "unitsShort": "adet",
