@@ -276,6 +276,11 @@ tr:last-child td {
   color: var(--text);
   font: inherit;
 }
+/* Submit button on admin forms: auto width, left-aligned (not full-width). */
+.form.panel button[type="submit"] {
+  align-self: flex-start;
+  padding-inline: 1.4rem;
+}
 .form .row-2 {
   display: grid;
   grid-template-columns: 1fr 1fr;
