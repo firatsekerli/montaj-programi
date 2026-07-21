@@ -129,6 +129,7 @@ export async function generatePlan() {
     committed,
     siteCoords: ctx.siteCoords,
     avgSpeedKmh: ctx.avgSpeedKmh,
+    resources: ctx.resources,
   });
 
   const deliveryByOrder = new Map((orders ?? []).map((o) => [o.code, o.delivery_date] as const));
@@ -150,6 +151,7 @@ export async function generatePlan() {
       order_line_id: a.orderLineId,
       units: a.units,
       estimated_cost: a.estimatedCost,
+      asset_ids: a.assetIds,
       status: "planned",
     }));
     const { error } = await supabase.from("assignment").insert(rows);

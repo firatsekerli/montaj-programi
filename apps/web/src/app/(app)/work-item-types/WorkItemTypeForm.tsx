@@ -13,6 +13,7 @@ export interface WorkItemTypeDefaults {
   hoursPerUnit?: number;
   scaleAttr?: string;
   scaleCoefficient?: number;
+  requiredResource?: string;
 }
 
 export function WorkItemTypeForm({
@@ -93,6 +94,16 @@ export function WorkItemTypeForm({
           <span className="help">{t("scaleHelp")}</span>
         </>
       )}
+
+      <label>
+        {t("requiredResource")}
+        <input
+          name="requiredResource"
+          defaultValue={defaults.requiredResource}
+          placeholder="manlift"
+        />
+      </label>
+      <span className="help">{t("requiredResourceHelp")}</span>
 
       <button type="submit" className="btn">
         {submitLabel}

@@ -20,6 +20,7 @@ function parseForm(formData: FormData) {
     capacity_model: capacityModel,
     base_capacity: null as Record<string, number> | null,
     effort: null as Record<string, unknown> | null,
+    required_resource: String(formData.get("requiredResource") ?? "").trim() || null,
   };
   if (capacityModel === "count") {
     base.base_capacity = {

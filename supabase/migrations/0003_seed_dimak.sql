@@ -90,9 +90,11 @@ begin
     values (v_tenant, 'TAM_KASA_CIFT_KANAT', 'Tam Kasa Çift Kanat Yangın Kapısı',
             'Yangın', 'count', '{"normal":5,"overtime":8}')
     returning id into v_full_double;
-  insert into work_item_type (tenant_id, code, name, category, capacity_model, effort)
+  insert into work_item_type (tenant_id, code, name, category, capacity_model, effort,
+      required_resource)
     values (v_tenant, 'ENDUSTRIYEL', 'Endüstriyel Kapı', 'Endüstriyel', 'effort',
-            '{"hoursPerUnit":4.3125,"perAttr":{"attr":"line.area_m2","coefficient":0.1875}}')
+            '{"hoursPerUnit":4.3125,"perAttr":{"attr":"line.area_m2","coefficient":0.1875}}',
+            'manlift')
     returning id into v_industrial;
 
   -- Capacity modifier rules (the "±%" bullet points) --------------------------
@@ -182,6 +184,18 @@ begin
     (v_manlift1, v_sepet, 'Manlift sepette taşınır'),
     (v_manlift2, v_sepet, 'Manlift sepette taşınır'),
     (v_sepet, v_kamyonet, 'Sepet Kamyonet''e bağlanır');
+
+  -- Fleet enforcement (0011): give each team its truck(s) and pool the manlifts.
+  -- Kazım installs fire + industrial → an open bed (20 fire doors) + a big
+  -- pickup (3 industrial). The others get one truck each; Faruk (subcontractor)
+  -- brings its own, so it stays unassigned.
+  update asset set team_id = v_team_kazim where id in (v_ak1, v_kbuyuk);
+  update asset set team_id = v_team_murat where id = v_kamyonet;
+  update asset set team_id = v_team_erkan where id = v_ak2;
+
+  -- The two manlifts form a shared pool: at most two teams can install
+  -- industrial doors (which require a manlift) on the same day.
+  update asset set resource_kind = 'manlift' where id in (v_manlift1, v_manlift2);
 
   -- A little backlog so the Orders screen has content ------------------------
   insert into work_order (tenant_id, code, site_id, order_date, delivery_date,

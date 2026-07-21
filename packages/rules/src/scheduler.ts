@@ -36,6 +36,10 @@ export interface ScheduleTeam {
   unavailableByDate?: Record<string, number>;
   /** Per-type units/day override for this team (e.g. subcontractor "2/day"). */
   dailyCapOverride?: Record<string, number>;
+  /** Max units/day of a type the team's vehicle(s) can carry (absent = no cap). */
+  carryCapByType?: Record<string, number>;
+  /** The team's committed vehicle asset ids (recorded on each assignment). */
+  vehicleIds?: string[];
 }
 
 export interface ScheduleLine {
@@ -74,6 +78,8 @@ export interface PlannedAssignment {
   units: number;
   estimatedCost: number;
   typeId: string;
+  /** Committed vehicles + reserved shared resources (e.g. a manlift). */
+  assetIds: string[];
 }
 
 export interface UnplacedItem {
@@ -96,6 +102,13 @@ export interface ScheduleInput {
   siteCoords?: Record<string, Coord>;
   /** Average road speed (km/h) for distance→time. Default 55. */
   avgSpeedKmh?: number;
+  /**
+   * Shared resource pools by kind → the available asset ids, e.g.
+   * { manlift: ["id1","id2"] }. A team-day installing a type that requires that
+   * resource reserves one; when the pool for a day is exhausted, no more teams
+   * can install that type that day.
+   */
+  resources?: Record<string, string[]>;
 }
 
 export interface ScheduleOutput {
@@ -113,6 +126,69 @@ interface DayState {
   coords: Coord[];
   /** Current whole-day driving time (minutes) for the tour so far. */
   tourMin: number;
+}
+
+/**
+ * Fleet bookkeeping shared across the whole schedule pass:
+ * - `resources`: available shared-resource asset ids by kind (e.g. manlifts).
+ * - `reservations`: kind → date → (teamId → reserved assetId). One unit per
+ *   team-day; the pool size caps how many teams install that kind in parallel.
+ * - `placedByType`: teamId → date → typeId → units already placed, to enforce
+ *   each team's per-type carrying capacity within the day.
+ */
+interface FleetCtx {
+  resources: Record<string, string[]>;
+  reservations: Map<string, Map<string, Map<string, string>>>;
+  placedByType: Map<string, Map<string, Map<string, number>>>;
+}
+
+/**
+ * Reserve one shared resource of `kind` for `teamId` on `date`.
+ * - No pool configured for the kind => requirement is not enforced (`ok`, no
+ *   asset), preserving pre-fleet behavior until the company adds resources.
+ * - Team already holds one that day => reuse it (one manlift covers all its work).
+ * - Pool exhausted for the day => `ok: false` (this type can't run for this team
+ *   that day).
+ */
+function reserveResource(
+  fleet: FleetCtx,
+  kind: string,
+  date: string,
+  teamId: string,
+): { ok: boolean; assetId?: string } {
+  const pool = fleet.resources[kind];
+  if (!pool || pool.length === 0) return { ok: true };
+  let byDate = fleet.reservations.get(kind);
+  if (!byDate) {
+    byDate = new Map();
+    fleet.reservations.set(kind, byDate);
+  }
+  let byTeam = byDate.get(date);
+  if (!byTeam) {
+    byTeam = new Map();
+    byDate.set(date, byTeam);
+  }
+  const existing = byTeam.get(teamId);
+  if (existing) return { ok: true, assetId: existing };
+  if (byTeam.size >= pool.length) return { ok: false };
+  const assetId = pool[byTeam.size]!;
+  byTeam.set(teamId, assetId);
+  return { ok: true, assetId };
+}
+
+/** teamId → date → typeId → units placed so far (created lazily). */
+function placedMap(fleet: FleetCtx, teamId: string, date: string): Map<string, number> {
+  let byDate = fleet.placedByType.get(teamId);
+  if (!byDate) {
+    byDate = new Map();
+    fleet.placedByType.set(teamId, byDate);
+  }
+  let byType = byDate.get(date);
+  if (!byType) {
+    byType = new Map();
+    byDate.set(date, byType);
+  }
+  return byType;
 }
 
 export function schedule(input: ScheduleInput): ScheduleOutput {
@@ -140,6 +216,12 @@ export function schedule(input: ScheduleInput): ScheduleOutput {
     const b = budget.get(c.teamId);
     if (b && b.has(c.date)) b.set(c.date, (b.get(c.date) ?? 1) - c.cost);
   }
+
+  const fleet: FleetCtx = {
+    resources: input.resources ?? {},
+    reservations: new Map(),
+    placedByType: new Map(),
+  };
 
   const baseToSiteMin = (team: ScheduleTeam, siteId: string): number => {
     const coord = siteCoords[siteId];
@@ -208,7 +290,7 @@ export function schedule(input: ScheduleInput): ScheduleOutput {
       if ([...remaining.values()].every((r) => r <= 0)) break;
       placeOrderOnTeam(
         order, team, window, remaining, shift, rules, hoursPerDay, budget,
-        state.get(team.id)!, siteCoords, speed, assignments,
+        state.get(team.id)!, siteCoords, speed, fleet, assignments,
       );
     }
 
@@ -236,10 +318,12 @@ function placeOrderOnTeam(
   teamState: Map<string, DayState>,
   siteCoords: Record<string, Coord>,
   speed: number,
+  fleet: FleetCtx,
   out: PlannedAssignment[],
 ): void {
   const b = budget.get(team.id)!;
   const siteCoord = siteCoords[order.siteId];
+  const vehicleIds = team.vehicleIds ?? [];
 
   for (const date of window) {
     if (order.lines.every((l) => (remaining.get(l.orderLineId) ?? 0) <= 0)) break;
@@ -248,6 +332,7 @@ function placeOrderOnTeam(
     const headcount = team.headcount - (team.unavailableByDate?.[date] ?? 0);
     if (headcount <= 0) continue;
 
+    const placed = placedMap(fleet, team.id, date);
     const st = teamState.get(date)!;
     let rem = b.get(date) ?? 1;
     let overheadCharged = st.sites.has(order.siteId);
@@ -285,14 +370,32 @@ function placeOrderOnTeam(
       const available = rem - overhead;
       if (available <= EPS) break; // no room left on this day
 
-      const maxUnits = Math.floor((available + EPS) / unit);
-      if (maxUnits <= 0) {
+      const maxByBudget = Math.floor((available + EPS) / unit);
+      if (maxByBudget <= 0) {
         if (!overheadCharged) break; // can't even fit overhead + one unit today
         continue;
       }
 
+      // Vehicle carrying capacity: cap this type's units/day to what the team's
+      // truck can carry. Already-placed units of the type this day count.
+      let maxUnits = maxByBudget;
+      const cap = team.carryCapByType?.[line.type.id];
+      const placedOfType = placed.get(line.type.id) ?? 0;
+      if (cap !== undefined) maxUnits = Math.min(maxUnits, Math.max(0, cap - placedOfType));
+      if (maxUnits <= 0) continue; // truck full for this type today; try other lines
+
+      // Shared resource (e.g. a manlift for industrial doors): reserve one for
+      // the team-day. If the pool is exhausted for the day, this type can't run.
+      let reservedAsset: string | undefined;
+      if (line.type.requiredResource) {
+        const res = reserveResource(fleet, line.type.requiredResource, date, team.id);
+        if (!res.ok) continue;
+        reservedAsset = res.assetId;
+      }
+
       const place = Math.min(r, maxUnits);
       const cost = place * unit + overhead;
+      const assetIds = reservedAsset ? [...vehicleIds, reservedAsset] : [...vehicleIds];
       out.push({
         orderLineId: line.orderLineId,
         orderId: order.orderId,
@@ -302,7 +405,9 @@ function placeOrderOnTeam(
         units: place,
         estimatedCost: cost,
         typeId: line.type.id,
+        assetIds,
       });
+      placed.set(line.type.id, placedOfType + place);
       rem -= cost;
       remaining.set(line.orderLineId, r - place);
       if (!overheadCharged) {

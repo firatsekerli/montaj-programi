@@ -72,6 +72,8 @@
     "scaleAttr": "Boyuta göre ölçek — özellik (ör. area_m2)",
     "scaleCoefficient": "Katsayı (saat/birim)",
     "scaleHelp": "İsteğe bağlı: süre = temel saat + katsayı × özellik. Boş bırakılırsa sabit süre kullanılır. (Endüstriyel örn: 4.3125 + 0.1875 × area_m2)",
+    "requiredResource": "Gerekli kaynak",
+    "requiredResourceHelp": "İsteğe bağlı: bu tipi monte etmek için paylaşılan bir ekipman gerekir (ör. endüstriyel kapı için \"manlift\"). Araçlar sayfasında aynı adı taşıyan ekipman sayısı, bu tipi aynı gün kaç ekibin monte edebileceğini sınırlar. Boş = kısıt yok.",
     "edit": "Düzenle",
     "delete": "Sil",
     "create": "Oluştur",
@@ -177,7 +179,15 @@
     "location": "Mevcut Konum",
     "vehicle": "Araç",
     "equipment": "Ekipman",
-    "yes": "Evet"
+    "yes": "Evet",
+    "fleetTitle": "Filo ve kapasite",
+    "team": "Bağlı ekip",
+    "noTeam": "— (bağlı değil)",
+    "teamHelp": "Bu araç hangi ekibin aracıysa onu seçin. Ekip bir işe atandığında bu araç da atamaya yazılır ve taşıma kapasitesi o ekibi sınırlar.",
+    "resourceKind": "Paylaşılan kaynak türü",
+    "resourceKindHelp": "İsteğe bağlı: bu ekipman paylaşılan bir havuzun parçasıysa türünü yazın (ör. \"manlift\"). Aynı türden ekipman sayısı, o kaynağı gerektiren tipi aynı gün kaç ekibin monte edebileceğini sınırlar.",
+    "carryCap": "Günlük taşıma kapasitesi",
+    "carryCapHelp": "Bu aracın kapı tipi başına günde kaç adet taşıyabileceği. Boş = sınır yok. Planlayıcı ekibin günlük montajını bu sayıyla sınırlar."
   },
   "orders": {
     "title": "Siparişler",

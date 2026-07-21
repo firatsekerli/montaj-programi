@@ -419,6 +419,17 @@ label.checkbox input {
 .cap-row input[type="number"]::placeholder {
   font-size: 0.85rem;
 }
+.cap-list {
+  display: flex;
+  flex-direction: column;
+  gap: 0.4rem;
+  margin-top: 0.25rem;
+}
+.field-label {
+  font-size: 0.9rem;
+  color: var(--text);
+  margin-top: 0.25rem;
+}
 .btn-ghost {
   align-self: flex-start;
   background: transparent;

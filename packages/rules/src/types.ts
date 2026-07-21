@@ -30,6 +30,12 @@ export interface WorkItemType {
     hoursPerUnit: number;
     perAttr?: { attr: string; coefficient: number };
   };
+  /**
+   * If set, installing this type on a team-day requires one available shared
+   * resource of this kind (e.g. "manlift" for industrial doors). The number of
+   * such resources caps how many teams can install this type in parallel.
+   */
+  requiredResource?: string;
 }
 
 export interface ShiftContext {

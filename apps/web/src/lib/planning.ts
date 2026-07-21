@@ -30,6 +30,8 @@ export interface PlanningContext {
   calendar: Calendar;
   siteCoords: Record<string, Coord>;
   avgSpeedKmh: number;
+  /** Shared resource pools by kind → available asset ids (e.g. manlifts). */
+  resources: Record<string, string[]>;
 }
 
 export async function buildPlanningContext(supabase: Supabase): Promise<PlanningContext> {
@@ -67,6 +69,36 @@ export async function buildPlanningContext(supabase: Supabase): Promise<Planning
     if (l.lat != null && l.lon != null) locCoords[l.id] = { lat: l.lat, lon: l.lon };
   }
 
+  // Fleet (0011): assets carry a team_id (the team's vehicle) and/or a
+  // resource_kind (a shared pool member like a manlift). Tolerant of a lagging
+  // migration — absent columns just leave the fleet unconfigured.
+  const { data: assetRows } = await supabase
+    .from("asset")
+    .select("id, team_id, resource_kind");
+  const { data: assetCapRows } = await supabase
+    .from("asset_capacity")
+    .select("asset_id, work_item_type_id, max_units");
+
+  const assetTeam: Record<string, string> = {};
+  const vehicleIdsByTeam: Record<string, string[]> = {};
+  const resources: Record<string, string[]> = {};
+  for (const a of (assetRows ?? []) as Array<{ id: string; team_id: string | null; resource_kind: string | null }>) {
+    if (a.team_id) {
+      assetTeam[a.id] = a.team_id;
+      (vehicleIdsByTeam[a.team_id] ??= []).push(a.id);
+    }
+    if (a.resource_kind) (resources[a.resource_kind] ??= []).push(a.id);
+  }
+  // carryCapByType[team][type] = Σ over the team's vehicles of max_units for the
+  // type (how many units/day the truck(s) can carry).
+  const carryCapByTeam: Record<string, Record<string, number>> = {};
+  for (const c of (assetCapRows ?? []) as Array<{ asset_id: string; work_item_type_id: string; max_units: number | null }>) {
+    const teamId = assetTeam[c.asset_id];
+    if (!teamId || c.max_units == null) continue;
+    const byType = (carryCapByTeam[teamId] ??= {});
+    byType[c.work_item_type_id] = (byType[c.work_item_type_id] ?? 0) + c.max_units;
+  }
+
   const siteCoords: Record<string, Coord> = {};
   for (const s of (siteRows ?? []) as Array<{ id: string; lat: number | null; lon: number | null }>) {
     if (s.lat != null && s.lon != null) siteCoords[s.id] = { lat: s.lat, lon: s.lon };
@@ -80,6 +112,7 @@ export async function buildPlanningContext(supabase: Supabase): Promise<Planning
       capacityModel: row.capacity_model,
       baseCapacity: row.base_capacity ?? undefined,
       effort: row.effort ?? undefined,
+      requiredResource: row.required_resource ?? undefined,
     });
   }
 
@@ -139,10 +172,12 @@ export async function buildPlanningContext(supabase: Supabase): Promise<Planning
       baseCoord,
       unavailableByDate: unavailable[t.id] ?? {},
       dailyCapOverride: capByTeam[t.id] ?? {},
+      carryCapByType: carryCapByTeam[t.id] ?? {},
+      vehicleIds: vehicleIdsByTeam[t.id] ?? [],
     };
   });
 
-  return { typeMap, rules, shift, teams, calendar, siteCoords, avgSpeedKmh: AVG_KMH };
+  return { typeMap, rules, shift, teams, calendar, siteCoords, avgSpeedKmh: AVG_KMH, resources };
 }
 
 export function lineFacts(

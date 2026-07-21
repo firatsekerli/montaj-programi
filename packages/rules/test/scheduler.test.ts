@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { schedule, type ScheduleOrder, type ScheduleTeam } from "../src/index";
+import { schedule, type ScheduleOrder, type ScheduleTeam, type WorkItemType } from "../src/index";
 import { dimakRules, dimakShift, fullFrameSingleFire, industrialDoor } from "./dimak.fixtures";
 
 // Two weeks of Mon–Fri working days.
@@ -204,5 +204,92 @@ describe("delivery-driven scheduler", () => {
       committed: [{ teamId: "team-1", date: "2026-01-05", cost: 1 }],
     });
     expect(assignments.every((a) => a.date >= "2026-01-06")).toBe(true);
+  });
+});
+
+describe("fleet enforcement", () => {
+  it("caps a type's units/day to what the team's truck carries", () => {
+    // Engine rate is 7/day, but the truck only carries 4 fire doors/day.
+    const { assignments } = schedule({
+      workingDays: HORIZON,
+      shift: dimakShift,
+      rules: dimakRules,
+      teams: [team({ carryCapByType: { [fullFrameSingleFire.id]: 4 } })],
+      orders: [order({ lines: [{ orderLineId: "l1", type: fullFrameSingleFire, quantity: 12, facts: {} }] })],
+    });
+    // No single day exceeds the truck's 4-door limit.
+    const perDay = new Map<string, number>();
+    for (const a of assignments) perDay.set(a.date, (perDay.get(a.date) ?? 0) + a.units);
+    expect([...perDay.values()].every((n) => n <= 4)).toBe(true);
+    // Still finishes all 12 (over more days).
+    expect(assignments.reduce((s, a) => s + a.units, 0)).toBe(12);
+  });
+
+  it("limits how many teams install a manlift type in parallel to the pool size", () => {
+    // Industrial needs a manlift; only ONE manlift exists → at most one team can
+    // install industrial on any given day, even with two capable teams.
+    const industrialManlift: WorkItemType = { ...industrialDoor, requiredResource: "manlift" };
+    const A = team({ id: "A", capableTypeIds: [industrialManlift.id] });
+    const B = team({ id: "B", capableTypeIds: [industrialManlift.id] });
+    const week1 = HORIZON.slice(0, 5);
+    const { assignments } = schedule({
+      workingDays: HORIZON,
+      shift: dimakShift,
+      rules: dimakRules,
+      teams: [A, B],
+      resources: { manlift: ["manlift-1"] },
+      orders: [
+        order({ orderId: "o1", orderCode: "SIP-A", siteId: "sA",
+          lines: [{ orderLineId: "a", type: industrialManlift, quantity: 3, facts: { "line.area_m2": 25 } }],
+          earliestDate: week1[0]!, deliveryDate: week1[week1.length - 1]! }),
+        order({ orderId: "o2", orderCode: "SIP-B", siteId: "sB",
+          lines: [{ orderLineId: "b", type: industrialManlift, quantity: 3, facts: { "line.area_m2": 25 } }],
+          earliestDate: week1[0]!, deliveryDate: week1[week1.length - 1]! }),
+      ],
+    });
+    // Each day, at most one team runs industrial (one manlift to share).
+    const teamsPerDay = new Map<string, Set<string>>();
+    for (const a of assignments) {
+      const s = teamsPerDay.get(a.date) ?? new Set();
+      s.add(a.teamId);
+      teamsPerDay.set(a.date, s);
+    }
+    expect([...teamsPerDay.values()].every((s) => s.size <= 1)).toBe(true);
+    // The single manlift is committed on every industrial assignment.
+    expect(assignments.every((a) => a.assetIds.includes("manlift-1"))).toBe(true);
+  });
+
+  it("commits the team's vehicles (and a reserved resource) on each assignment", () => {
+    const industrialManlift: WorkItemType = { ...industrialDoor, requiredResource: "manlift" };
+    const { assignments } = schedule({
+      workingDays: HORIZON,
+      shift: dimakShift,
+      rules: dimakRules,
+      teams: [team({ id: "kazim", capableTypeIds: [industrialManlift.id], vehicleIds: ["truck-1"] })],
+      resources: { manlift: ["manlift-1", "manlift-2"] },
+      orders: [
+        order({ orderCode: "SIP-IND",
+          lines: [{ orderLineId: "l1", type: industrialManlift, quantity: 1, facts: { "line.area_m2": 25 } }] }),
+      ],
+    });
+    expect(assignments).toHaveLength(1);
+    expect(assignments[0]!.assetIds).toEqual(["truck-1", "manlift-1"]);
+  });
+
+  it("does not enforce a required resource when no pool is configured", () => {
+    // requiredResource set but caller passed no resources → pre-fleet behavior.
+    const industrialManlift: WorkItemType = { ...industrialDoor, requiredResource: "manlift" };
+    const { assignments, unplaced } = schedule({
+      workingDays: HORIZON,
+      shift: dimakShift,
+      rules: dimakRules,
+      teams: [team({ id: "kazim", capableTypeIds: [industrialManlift.id] })],
+      orders: [
+        order({ orderCode: "SIP-IND",
+          lines: [{ orderLineId: "l1", type: industrialManlift, quantity: 1, facts: { "line.area_m2": 25 } }] }),
+      ],
+    });
+    expect(unplaced).toHaveLength(0);
+    expect(assignments.reduce((s, a) => s + a.units, 0)).toBe(1);
   });
 });

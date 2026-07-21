@@ -35,6 +35,7 @@ export default async function EditWorkItemTypePage({
           hoursPerUnit: row.effort?.hoursPerUnit,
           scaleAttr: row.effort?.perAttr?.attr?.replace(/^line\./, ""),
           scaleCoefficient: row.effort?.perAttr?.coefficient,
+          requiredResource: row.required_resource ?? "",
         }}
       />
     </main>

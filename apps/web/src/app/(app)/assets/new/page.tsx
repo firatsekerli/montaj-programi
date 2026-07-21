@@ -7,12 +7,22 @@ export default async function NewAssetPage() {
   const t = await getTranslations("assets");
   const tc = await getTranslations("crud");
   const supabase = await createSupabaseServerClient();
-  const { data: locations } = await supabase.from("location").select("id, name").order("name");
+  const [{ data: locations }, { data: teams }, { data: types }] = await Promise.all([
+    supabase.from("location").select("id, name").order("name"),
+    supabase.from("team").select("id, name").order("name"),
+    supabase.from("work_item_type").select("id, name").order("name"),
+  ]);
 
   return (
     <main>
       <h1>{t("newTitle")}</h1>
-      <AssetForm action={createAsset} locations={locations ?? []} submitLabel={tc("create")} />
+      <AssetForm
+        action={createAsset}
+        locations={locations ?? []}
+        teams={teams ?? []}
+        types={types ?? []}
+        submitLabel={tc("create")}
+      />
     </main>
   );
 }
