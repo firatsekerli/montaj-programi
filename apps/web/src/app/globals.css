@@ -389,6 +389,15 @@ dialog.modal::backdrop {
   font-size: 0.8rem;
   font-weight: 400;
 }
+.form-error {
+  margin: 0;
+  padding: 0.6rem 0.8rem;
+  border: 1px solid var(--danger);
+  border-radius: 8px;
+  background: color-mix(in srgb, var(--danger) 14%, transparent);
+  color: var(--danger);
+  font-size: 0.9rem;
+}
 label.checkbox {
   flex-direction: row;
   align-items: center;

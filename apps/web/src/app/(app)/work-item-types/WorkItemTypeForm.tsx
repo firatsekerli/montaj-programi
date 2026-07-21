@@ -1,7 +1,8 @@
 "use client";
 
-import { useState } from "react";
+import { useActionState, useState } from "react";
 import { useTranslations } from "next-intl";
+import type { WitFormState } from "@/app/actions/work-item-types";
 
 export interface WorkItemTypeDefaults {
   code?: string;
@@ -23,15 +24,17 @@ export function WorkItemTypeForm({
   defaults = {},
   submitLabel,
 }: {
-  action: (formData: FormData) => void | Promise<void>;
+  action: (prev: WitFormState, formData: FormData) => Promise<WitFormState>;
   defaults?: WorkItemTypeDefaults;
   submitLabel: string;
 }) {
   const t = useTranslations("wit");
   const [model, setModel] = useState<"count" | "effort">(defaults.capacityModel ?? "count");
+  const [state, formAction, pending] = useActionState(action, {});
 
   return (
-    <form action={action} className="form form-wide panel">
+    <form action={formAction} className="form form-wide panel">
+      {state?.error && <p className="form-error">{state.error}</p>}
       <label>
         {t("name")}
         <input name="name" defaultValue={defaults.name} required />
@@ -131,7 +134,7 @@ export function WorkItemTypeForm({
       </label>
       <span className="help">{t("requiredResourceHelp")}</span>
 
-      <button type="submit" className="btn">
+      <button type="submit" className="btn" disabled={pending}>
         {submitLabel}
       </button>
     </form>

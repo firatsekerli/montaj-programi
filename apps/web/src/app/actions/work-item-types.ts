@@ -13,13 +13,30 @@ type Supabase = Awaited<ReturnType<typeof createSupabaseServerClient>>;
  * tenant_id we set must match their membership or the insert is rejected.
  */
 
+export interface WitFormState {
+  error?: string;
+}
+
 // Columns added by later migrations — dropped on error so a lagging migration
 // (0011 required_resource, 0013 crew_baseline/per_person_bonus) can't make
 // creating a type fail outright.
 const OPTIONAL_COLS = ["required_resource", "crew_baseline", "per_person_bonus"] as const;
 
-/** Insert/update tolerant of missing optional columns (retry without them). */
-async function writeType(supabase: Supabase, values: Record<string, unknown>, id?: string) {
+/** A user-facing Turkish message for the common failures. */
+function friendly(error: { code?: string; message: string }): string {
+  if (error.code === "23505") return "Bu kod zaten kullanılıyor. Lütfen farklı bir kod girin.";
+  return error.message;
+}
+
+/**
+ * Insert/update tolerant of missing optional columns (retry without them).
+ * Returns a user-facing error string, or null on success.
+ */
+async function writeType(
+  supabase: Supabase,
+  values: Record<string, unknown>,
+  id?: string,
+): Promise<string | null> {
   const run = (v: Record<string, unknown>) =>
     id ? supabase.from("work_item_type").update(v).eq("id", id) : supabase.from("work_item_type").insert(v);
   let { error } = await run(values);
@@ -28,7 +45,7 @@ async function writeType(supabase: Supabase, values: Record<string, unknown>, id
     for (const k of OPTIONAL_COLS) delete rest[k];
     ({ error } = await run(rest));
   }
-  if (error) throw new Error(error.message);
+  return error ? friendly(error) : null;
 }
 
 function parseForm(formData: FormData) {
@@ -61,19 +78,28 @@ function parseForm(formData: FormData) {
   return base;
 }
 
-export async function createWorkItemType(formData: FormData) {
+export async function createWorkItemType(
+  _prev: WitFormState,
+  formData: FormData,
+): Promise<WitFormState> {
   const { tenantId } = await getCurrentContext();
-  if (!tenantId) throw new Error("Kiracı bulunamadı.");
+  if (!tenantId) return { error: "Kiracı bulunamadı." };
   const supabase = await createSupabaseServerClient();
-  await writeType(supabase, { tenant_id: tenantId, ...parseForm(formData) });
+  const err = await writeType(supabase, { tenant_id: tenantId, ...parseForm(formData) });
+  if (err) return { error: err };
 
   revalidatePath("/work-item-types");
   redirect("/work-item-types");
 }
 
-export async function updateWorkItemType(id: string, formData: FormData) {
+export async function updateWorkItemType(
+  id: string,
+  _prev: WitFormState,
+  formData: FormData,
+): Promise<WitFormState> {
   const supabase = await createSupabaseServerClient();
-  await writeType(supabase, parseForm(formData), id);
+  const err = await writeType(supabase, parseForm(formData), id);
+  if (err) return { error: err };
 
   revalidatePath("/work-item-types");
   redirect("/work-item-types");
