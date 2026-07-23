@@ -30,6 +30,13 @@ interface TeamRow {
   name: string;
 }
 
+/** Monday (UTC) of the week containing an ISO date. */
+function mondayOfISO(iso: string): string {
+  const d = new Date(`${iso}T00:00:00Z`);
+  d.setUTCDate(d.getUTCDate() - ((d.getUTCDay() + 6) % 7));
+  return d.toISOString().slice(0, 10);
+}
+
 export function PlanningBoard({
   teams,
   weekDays,
@@ -50,6 +57,18 @@ export function PlanningBoard({
   const router = useRouter();
   const format = useFormatter();
   const sensors = useSensors(useSensor(PointerSensor, { activationConstraint: { distance: 4 } }));
+  const currentWeek = weekDays[0];
+
+  function apply(id: string, teamId: string, date: string) {
+    setItems((prev) => prev.map((a) => (a.id === id ? { ...a, teamId, date, manual: true } : a)));
+    startTransition(async () => {
+      await moveAssignment(id, teamId, date);
+      // If the target lands in another week, jump there so the card is visible.
+      const target = mondayOfISO(date);
+      if (target !== currentWeek) router.push(`/planning?week=${target}`);
+      else router.refresh();
+    });
+  }
 
   function onDragEnd(e: DragEndEvent) {
     const id = String(e.active.id);
@@ -58,12 +77,7 @@ export function PlanningBoard({
     if (!teamId || !date) return;
     const current = items.find((a) => a.id === id);
     if (!current || (current.teamId === teamId && current.date === date)) return;
-
-    setItems((prev) => prev.map((a) => (a.id === id ? { ...a, teamId, date, manual: true } : a)));
-    startTransition(async () => {
-      await moveAssignment(id, teamId, date);
-      router.refresh();
-    });
+    apply(id, teamId, date);
   }
 
   function onUnpin(id: string) {
@@ -90,7 +104,15 @@ export function PlanningBoard({
           ))}
 
           {teams.map((team) => (
-            <BoardRow key={team.id} team={team} weekDays={weekDays} items={items} onUnpin={onUnpin} />
+            <BoardRow
+              key={team.id}
+              team={team}
+              teams={teams}
+              weekDays={weekDays}
+              items={items}
+              onUnpin={onUnpin}
+              onMove={apply}
+            />
           ))}
         </div>
       </div>
@@ -100,14 +122,18 @@ export function PlanningBoard({
 
 function BoardRow({
   team,
+  teams,
   weekDays,
   items,
   onUnpin,
+  onMove,
 }: {
   team: TeamRow;
+  teams: TeamRow[];
   weekDays: string[];
   items: BoardAssignment[];
   onUnpin: (id: string) => void;
+  onMove: (id: string, teamId: string, date: string) => void;
 }) {
   return (
     <>
@@ -115,7 +141,17 @@ function BoardRow({
       {weekDays.map((d) => {
         const cell = items.filter((a) => a.teamId === team.id && a.date === d);
         const usage = cell.reduce((s, a) => s + a.cost, 0);
-        return <Cell key={d} cellId={`${team.id}|${d}`} usage={usage} cards={cell} onUnpin={onUnpin} />;
+        return (
+          <Cell
+            key={d}
+            cellId={`${team.id}|${d}`}
+            usage={usage}
+            cards={cell}
+            teams={teams}
+            onUnpin={onUnpin}
+            onMove={onMove}
+          />
+        );
       })}
     </>
   );
@@ -125,12 +161,16 @@ function Cell({
   cellId,
   usage,
   cards,
+  teams,
   onUnpin,
+  onMove,
 }: {
   cellId: string;
   usage: number;
   cards: BoardAssignment[];
+  teams: TeamRow[];
   onUnpin: (id: string) => void;
+  onMove: (id: string, teamId: string, date: string) => void;
 }) {
   const { setNodeRef, isOver } = useDroppable({ id: cellId });
   const over = usage > 1.0001;
@@ -146,18 +186,33 @@ function Cell({
         </div>
       </div>
       {cards.map((c) => (
-        <Card key={c.id} a={c} onUnpin={onUnpin} />
+        <Card key={c.id} a={c} teams={teams} onUnpin={onUnpin} onMove={onMove} />
       ))}
     </div>
   );
 }
 
-function Card({ a, onUnpin }: { a: BoardAssignment; onUnpin: (id: string) => void }) {
+function Card({
+  a,
+  teams,
+  onUnpin,
+  onMove,
+}: {
+  a: BoardAssignment;
+  teams: TeamRow[];
+  onUnpin: (id: string) => void;
+  onMove: (id: string, teamId: string, date: string) => void;
+}) {
   const t = useTranslations("planning");
   const { attributes, listeners, setNodeRef, transform, isDragging } = useDraggable({ id: a.id });
+  const [editing, setEditing] = useState(false);
+  const [team, setTeam] = useState(a.teamId);
+  const [date, setDate] = useState(a.date);
+  const stop = (e: React.SyntheticEvent) => e.stopPropagation();
   const style = transform
     ? { transform: `translate(${transform.x}px, ${transform.y}px)`, zIndex: 20 }
     : undefined;
+
   return (
     <div
       ref={setNodeRef}
@@ -173,20 +228,58 @@ function Card({ a, onUnpin }: { a: BoardAssignment; onUnpin: (id: string) => voi
             type="button"
             className="pin"
             title={t("unpin")}
-            onPointerDown={(e) => e.stopPropagation()}
+            onPointerDown={stop}
             onClick={(e) => {
-              e.stopPropagation();
+              stop(e);
               onUnpin(a.id);
             }}
           >
             📌
           </button>
         )}
+        <button
+          type="button"
+          className="card-move"
+          title={t("moveTitle")}
+          onPointerDown={stop}
+          onClick={(e) => {
+            stop(e);
+            setTeam(a.teamId);
+            setDate(a.date);
+            setEditing((v) => !v);
+          }}
+        >
+          📅
+        </button>
       </strong>
       <span className="card-line">
         {a.units}× {a.typeName}
       </span>
       <span className="card-cost">{t("dayShare", { pct: Math.round(a.cost * 100) })}</span>
+
+      {editing && (
+        <div className="card-move-panel" onPointerDown={stop}>
+          <select value={team} onChange={(e) => setTeam(e.target.value)} aria-label={t("moveTeam")}>
+            {teams.map((tm) => (
+              <option key={tm.id} value={tm.id}>
+                {tm.name}
+              </option>
+            ))}
+          </select>
+          <input type="date" value={date} onChange={(e) => setDate(e.target.value)} aria-label={t("moveDate")} />
+          <button
+            type="button"
+            className="btn-ghost"
+            onClick={(e) => {
+              stop(e);
+              setEditing(false);
+              if (date) onMove(a.id, team, date);
+            }}
+          >
+            {t("move")}
+          </button>
+        </div>
+      )}
     </div>
   );
 }
