@@ -14,6 +14,7 @@ function shiftWeek(weekStart: string, deltaDays: number): string {
 
 interface Unplaced {
   orderCode: string;
+  typeName?: string;
   remaining: number;
   reason: "no_team" | "not_ready" | "past_deadline" | "no_capacity";
   deliveryDate: string | null;
@@ -100,6 +101,7 @@ export default async function PlanningPage({
             {unplaced.map((uu, i) => (
               <li key={`${uu.orderCode}-${i}`}>
                 <span className="mono">{uu.orderCode}</span>
+                {uu.typeName && <span className="unplaced-type">{uu.typeName}</span>}
                 <span className="muted-cell">
                   {uu.remaining} {t("unitsShort")}
                 </span>

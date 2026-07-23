@@ -163,9 +163,20 @@ export async function generatePlan() {
     dayFillTolerance: ctx.dayFillTolerance,
   });
 
+  // Resolve each unplaced line to its product (kapı tipi) name for the report.
+  const { data: typeRows } = await supabase.from("work_item_type").select("id, name");
+  const typeNameById = new Map<string, string>((typeRows ?? []).map((r) => [r.id, r.name]));
+  const lineTypeName = new Map<string, string>();
+  for (const order of orders ?? []) {
+    for (const line of order.order_line ?? []) {
+      lineTypeName.set(line.id, typeNameById.get(line.work_item_type_id) ?? "");
+    }
+  }
+
   const deliveryByOrder = new Map((orders ?? []).map((o) => [o.code, o.delivery_date] as const));
   const unplacedDetail = unplaced.map((uu) => ({
     orderCode: uu.orderCode,
+    typeName: lineTypeName.get(uu.orderLineId) ?? "",
     remaining: uu.remaining,
     reason: uu.reason,
     deliveryDate: deliveryByOrder.get(uu.orderCode) ?? null,
