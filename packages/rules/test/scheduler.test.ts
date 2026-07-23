@@ -51,8 +51,10 @@ describe("delivery-driven scheduler", () => {
     expect(assignments.every((a) => a.date >= "2026-01-05" && a.date <= "2026-01-16")).toBe(true);
   });
 
-  it("keeps one team per site when a single team is capable of all lines", () => {
-    // SIP-1002: industrial + fire, Kazım can do both; Erkan only fire.
+  it("lets different crews share a site (fire vs industrial run in parallel)", () => {
+    // SIP-1002: 1 industrial + 3 fire at one site. Kazım does both; Erkan only
+    // fire. Industrial can only go to Kazım; fire prefers the idle fire crew
+    // (Erkan) — so both crews work the site at once instead of Kazım doing all.
     const kazim = team({
       id: "kazim",
       capableTypeIds: [industrialDoor.id, fullFrameSingleFire.id],
@@ -73,8 +75,25 @@ describe("delivery-driven scheduler", () => {
         }),
       ],
     });
-    // whole order handled by the one team capable of both types
-    expect(new Set(assignments.map((a) => a.teamId))).toEqual(new Set(["kazim"]));
+    const indTeams = new Set(assignments.filter((a) => a.orderLineId === "ind").map((a) => a.teamId));
+    const fireTeams = new Set(assignments.filter((a) => a.orderLineId === "fire").map((a) => a.teamId));
+    expect(indTeams).toEqual(new Set(["kazim"])); // only Kazım can do industrial
+    expect(fireTeams).toEqual(new Set(["erkan"])); // fire goes to the idle fire crew
+  });
+
+  it("does NOT put two of the same crew on one site unless under deadline pressure", () => {
+    // 8 fire doors, comfortable deadline, two fire crews. One crew alone fits
+    // (7/day×many days), so the site stays single-crew — no needless second team.
+    const a = team({ id: "A", capableTypeIds: [fullFrameSingleFire.id] });
+    const b = team({ id: "B", capableTypeIds: [fullFrameSingleFire.id] });
+    const { assignments } = schedule({
+      workingDays: HORIZON,
+      shift: dimakShift,
+      rules: dimakRules,
+      teams: [a, b],
+      orders: [order({ lines: [{ orderLineId: "l1", type: fullFrameSingleFire, quantity: 8, facts: {} }] })],
+    });
+    expect(new Set(assignments.map((x) => x.teamId)).size).toBe(1);
   });
 
   it("does NOT plan before the earliest (production-due) date", () => {

@@ -260,7 +260,6 @@ export function schedule(input: ScheduleInput): ScheduleOutput {
     const window = workingDays.filter(
       (d) => d >= order.earliestDate && (!order.deliveryDate || d <= order.deliveryDate),
     );
-    const remaining = new Map(order.lines.map((l) => [l.orderLineId, l.quantity] as const));
 
     if (window.length === 0) {
       const pastDeadline =
@@ -270,64 +269,64 @@ export function schedule(input: ScheduleInput): ScheduleOutput {
       continue;
     }
 
-    // Teams that can do EVERY line of the order (so one team owns the site).
-    const capableAll = teams.filter((t) =>
-      order.lines.every((l) => t.capableTypeIds.includes(l.type.id)),
-    );
-    // Fallback: if no single team can do all line types, use any team capable of
-    // at least one line (a genuine multi-skill split, not a choice).
-    const pool =
-      capableAll.length > 0
-        ? capableAll
-        : teams.filter((t) => order.lines.some((l) => t.capableTypeIds.includes(l.type.id)));
-
-    if (pool.length === 0) {
-      for (const l of order.lines) unplaced.push(u(order, l.orderLineId, l.quantity, "no_team"));
-      continue;
-    }
-
-    // In-house first, then least-loaded in the window, then nearest. Fill the
-    // primary team; spill to the next only when the order can't finish in time.
-    const ordered = [...pool].sort(
-      (a, b) =>
-        a.preferenceWeight - b.preferenceWeight ||
-        loadInWindow(a.id, window) - loadInWindow(b.id, window) ||
-        baseToSiteMin(a, order.siteId) - baseToSiteMin(b, order.siteId),
-    );
-
-    for (const team of ordered) {
-      if ([...remaining.values()].every((r) => r <= 0)) break;
-      placeOrderOnTeam(
-        order, team, window, remaining, shift, rules, hoursPerDay, budget,
-        state.get(team.id)!, siteCoords, speed, fleet, dayBudget, assignments,
-      );
-    }
-
-    // Deadline pressure overflow: if the deadline capped the window and work
-    // still remains, place it on LATER days (past the deadline) instead of
-    // dropping it. These assignments land after order.deliveryDate and are
-    // flagged "late" on the board — better a late plan than a missing job.
-    if (order.deliveryDate && [...remaining.values()].some((r) => r > 0)) {
-      const lateWindow = workingDays.filter((d) => d >= order.earliestDate);
-      const orderedLate = [...pool].sort(
-        (a, b) =>
-          a.preferenceWeight - b.preferenceWeight ||
-          loadInWindow(a.id, lateWindow) - loadInWindow(b.id, lateWindow) ||
-          baseToSiteMin(a, order.siteId) - baseToSiteMin(b, order.siteId),
-      );
-      for (const team of orderedLate) {
-        if ([...remaining.values()].every((r) => r <= 0)) break;
-        placeOrderOnTeam(
-          order, team, lateWindow, remaining, shift, rules, hoursPerDay, budget,
-          state.get(team.id)!, siteCoords, speed, fleet, dayBudget, assignments,
-        );
-      }
-    }
-
-    // Anything still remaining means the whole horizon is full for this order.
+    // Split the order's lines by the SET of teams that can install them. Lines
+    // handled by the same crews stay together — one team owns them at the site,
+    // spilling to a second only under deadline pressure. Lines needing DIFFERENT
+    // crews (e.g. fire vs industrial) form separate groups that can run at the
+    // same site in parallel: two teams share a site only when they're doing
+    // different kinds of work, never two of the same crew (except under pressure).
+    const groups = new Map<string, ScheduleLine[]>();
     for (const l of order.lines) {
-      const rem = remaining.get(l.orderLineId) ?? 0;
-      if (rem > 0) unplaced.push(u(order, l.orderLineId, rem, "no_capacity"));
+      const key = teams
+        .filter((t) => t.capableTypeIds.includes(l.type.id))
+        .map((t) => t.id)
+        .sort()
+        .join(",");
+      const arr = groups.get(key);
+      if (arr) arr.push(l);
+      else groups.set(key, [l]);
+    }
+
+    for (const groupLines of groups.values()) {
+      const pool = teams.filter((t) => groupLines.every((l) => t.capableTypeIds.includes(l.type.id)));
+      if (pool.length === 0) {
+        for (const l of groupLines) unplaced.push(u(order, l.orderLineId, l.quantity, "no_team"));
+        continue;
+      }
+      const remaining = new Map(groupLines.map((l) => [l.orderLineId, l.quantity] as const));
+      const subOrder: ScheduleOrder = { ...order, lines: groupLines };
+
+      // Fill this crew group: in-house first, then least-loaded, then nearest.
+      // The primary team owns it; spill to the next only under deadline pressure.
+      const fill = (win: string[]) => {
+        const ordered = [...pool].sort(
+          (a, b) =>
+            a.preferenceWeight - b.preferenceWeight ||
+            loadInWindow(a.id, win) - loadInWindow(b.id, win) ||
+            baseToSiteMin(a, order.siteId) - baseToSiteMin(b, order.siteId),
+        );
+        for (const team of ordered) {
+          if ([...remaining.values()].every((r) => r <= 0)) break;
+          placeOrderOnTeam(
+            subOrder, team, win, remaining, shift, rules, hoursPerDay, budget,
+            state.get(team.id)!, siteCoords, speed, fleet, dayBudget, assignments,
+          );
+        }
+      };
+
+      fill(window);
+      // Deadline pressure overflow: place the remainder on LATER days (past the
+      // deadline) instead of dropping it. These land after order.deliveryDate and
+      // are flagged "late" on the board — better a late plan than a missing job.
+      if (order.deliveryDate && [...remaining.values()].some((r) => r > 0)) {
+        fill(workingDays.filter((d) => d >= order.earliestDate));
+      }
+
+      // Anything still remaining means the whole horizon is full for this group.
+      for (const l of groupLines) {
+        const rem = remaining.get(l.orderLineId) ?? 0;
+        if (rem > 0) unplaced.push(u(order, l.orderLineId, rem, "no_capacity"));
+      }
     }
   }
 
