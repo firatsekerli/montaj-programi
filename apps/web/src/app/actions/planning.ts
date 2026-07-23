@@ -12,7 +12,14 @@ import {
 } from "@montaj/rules";
 import { getCurrentContext } from "@/lib/auth";
 import { createSupabaseServerClient } from "@/lib/supabase/server";
-import { buildPlanningContext, horizonWorkingDays, lineFacts, mondayOf, type PlanningContext } from "@/lib/planning";
+import {
+  buildPlanningContext,
+  horizonWorkingDays,
+  lineFacts,
+  mondayOf,
+  subtractWorkingDays,
+  type PlanningContext,
+} from "@/lib/planning";
 import { one } from "@/lib/rel";
 
 type Supabase = Awaited<ReturnType<typeof createSupabaseServerClient>>;
@@ -283,13 +290,83 @@ async function recomputeTeamDay(
   }
 }
 
+/** Format an ISO date as Turkish dd.MM.yyyy (UTC, so the day never shifts). */
+function fmtTR(iso: string): string {
+  return new Intl.DateTimeFormat("tr-TR", {
+    day: "2-digit",
+    month: "2-digit",
+    year: "numeric",
+    timeZone: "UTC",
+  }).format(new Date(`${iso}T00:00:00Z`));
+}
+
+/**
+ * If manual moves pulled an order's earliest install date EARLIER than its
+ * planned production-ready date, revise production to one working day before the
+ * new install date and (re)raise an operations notification. Returns a warning
+ * message when it revised, else null.
+ */
+async function reviseProductionForOrder(
+  supabase: Supabase,
+  ctx: PlanningContext,
+  planId: string,
+  orderId: string,
+): Promise<string | null> {
+  const { data: order } = await supabase
+    .from("work_order")
+    .select("id, tenant_id, code, delivery_date, production_ready_date")
+    .eq("id", orderId)
+    .maybeSingle();
+  if (!order || !order.delivery_date) return null; // only deadline-driven orders
+
+  const { data: asg } = await supabase
+    .from("assignment")
+    .select("assign_date")
+    .eq("plan_id", planId)
+    .eq("order_id", orderId)
+    .order("assign_date", { ascending: true })
+    .limit(1);
+  const earliest = asg?.[0]?.assign_date as string | undefined;
+  if (!earliest) return null;
+
+  // Production must be complete one working day before installation starts.
+  const requiredProd = subtractWorkingDays(earliest, 1, ctx.calendar.workingWeekdays);
+  const current = order.production_ready_date as string | null;
+  if (current && requiredProd >= current) return null; // not earlier than planned
+
+  await supabase.from("work_order").update({ production_ready_date: requiredProd }).eq("id", orderId);
+
+  const message = `Montaj ${fmtTR(earliest)} tarihine çekildi — üretimin en geç ${fmtTR(requiredProd)} tarihine kadar tamamlanması gerekir.`;
+  await supabase
+    .from("task")
+    .delete()
+    .eq("related_order_id", orderId)
+    .eq("kind", "production_check")
+    .eq("status", "open");
+  await supabase.from("task").insert({
+    tenant_id: order.tenant_id,
+    kind: "production_check",
+    related_order_id: orderId,
+    due_date: requiredProd,
+    assignee_role: "ops",
+    status: "open",
+    payload: { message, revised: true },
+  });
+
+  return `${order.code}: ${message}`;
+}
+
 /** Move an assignment to a new team/day, then re-balance the affected days. */
-export async function moveAssignment(assignmentId: string, teamId: string, date: string) {
+export async function moveAssignment(
+  assignmentId: string,
+  teamId: string,
+  date: string,
+): Promise<{ warning?: string }> {
   const supabase = await createSupabaseServerClient();
 
   const { data: a } = await supabase
     .from("assignment")
-    .select("id, plan_id, team_id, assign_date")
+    .select("id, plan_id, team_id, assign_date, order_id")
     .eq("id", assignmentId)
     .single();
   if (!a) throw new Error("Atama bulunamadı.");
@@ -312,7 +389,12 @@ export async function moveAssignment(assignmentId: string, teamId: string, date:
     await recomputeTeamDay(supabase, ctx, planId, tid!, d!);
   }
 
+  // Pull the production date earlier + notify if this manual move needs it.
+  const warning = await reviseProductionForOrder(supabase, ctx, planId, a.order_id as string);
+
   revalidatePath("/planning");
+  revalidatePath("/notifications");
+  return warning ? { warning } : {};
 }
 
 /**

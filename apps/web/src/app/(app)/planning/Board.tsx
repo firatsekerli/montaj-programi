@@ -54,6 +54,7 @@ export function PlanningBoard({
     setItems(assignments);
   }, [assignments]);
   const [, startTransition] = useTransition();
+  const [notice, setNotice] = useState<string | null>(null);
   const router = useRouter();
   const format = useFormatter();
   const sensors = useSensors(useSensor(PointerSensor, { activationConstraint: { distance: 4 } }));
@@ -62,7 +63,8 @@ export function PlanningBoard({
   function apply(id: string, teamId: string, date: string) {
     setItems((prev) => prev.map((a) => (a.id === id ? { ...a, teamId, date, manual: true } : a)));
     startTransition(async () => {
-      await moveAssignment(id, teamId, date);
+      const res = await moveAssignment(id, teamId, date);
+      if (res?.warning) setNotice(res.warning);
       // If the target lands in another week, jump there so the card is visible.
       const target = mondayOfISO(date);
       if (target !== currentWeek) router.push(`/planning?week=${target}`);
@@ -90,6 +92,14 @@ export function PlanningBoard({
 
   return (
     <DndContext sensors={sensors} onDragEnd={onDragEnd}>
+      {notice && (
+        <div className="plan-notice" role="status">
+          <span>⚠️ {notice}</span>
+          <button type="button" onClick={() => setNotice(null)} aria-label="Kapat">
+            ×
+          </button>
+        </div>
+      )}
       <div className="board-scroll">
         <div className="board" style={{ gridTemplateColumns: `160px repeat(${weekDays.length}, 1fr)` }}>
           <div className="board-cell head team-col" />
