@@ -24,6 +24,8 @@ export interface BoardAssignment {
   typeName: string;
   /** Dragged into place by the planner — kept across "Yeniden Oluştur". */
   manual?: boolean;
+  /** Order's delivery deadline; a card past it is "late" and shown in red. */
+  deliveryDate?: string | null;
 }
 interface TeamRow {
   id: string;
@@ -222,17 +224,23 @@ function Card({
   const style = transform
     ? { transform: `translate(${transform.x}px, ${transform.y}px)`, zIndex: 20 }
     : undefined;
+  const late = Boolean(a.deliveryDate && a.date > a.deliveryDate);
 
   return (
     <div
       ref={setNodeRef}
       style={style}
-      className={`card-plan${isDragging ? " dragging" : ""}`}
+      className={`card-plan${isDragging ? " dragging" : ""}${late ? " late" : ""}`}
       {...listeners}
       {...attributes}
     >
       <strong>
         {a.orderCode}
+        {late && (
+          <span className="late-badge" title={t("lateTitle")}>
+            {t("late")}
+          </span>
+        )}
         {a.manual && (
           <button
             type="button"

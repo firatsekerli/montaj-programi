@@ -660,6 +660,22 @@ label.checkbox input {
   opacity: 0.85;
   box-shadow: 0 8px 24px rgba(0, 0, 0, 0.4);
 }
+/* Scheduled after the order's delivery date — flag it in red. */
+.card-plan.late {
+  border-color: var(--danger);
+  background: color-mix(in srgb, var(--danger) 12%, var(--panel-2));
+}
+.card-plan .late-badge {
+  margin-inline-start: 0.35rem;
+  padding: 0 0.3rem;
+  border-radius: 4px;
+  background: var(--danger);
+  color: #fff;
+  font-size: 0.6rem;
+  font-weight: 700;
+  vertical-align: middle;
+  letter-spacing: 0.02em;
+}
 .card-plan .card-line {
   color: var(--text);
 }

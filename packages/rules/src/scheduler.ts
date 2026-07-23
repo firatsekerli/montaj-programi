@@ -303,6 +303,28 @@ export function schedule(input: ScheduleInput): ScheduleOutput {
       );
     }
 
+    // Deadline pressure overflow: if the deadline capped the window and work
+    // still remains, place it on LATER days (past the deadline) instead of
+    // dropping it. These assignments land after order.deliveryDate and are
+    // flagged "late" on the board — better a late plan than a missing job.
+    if (order.deliveryDate && [...remaining.values()].some((r) => r > 0)) {
+      const lateWindow = workingDays.filter((d) => d >= order.earliestDate);
+      const orderedLate = [...pool].sort(
+        (a, b) =>
+          a.preferenceWeight - b.preferenceWeight ||
+          loadInWindow(a.id, lateWindow) - loadInWindow(b.id, lateWindow) ||
+          baseToSiteMin(a, order.siteId) - baseToSiteMin(b, order.siteId),
+      );
+      for (const team of orderedLate) {
+        if ([...remaining.values()].every((r) => r <= 0)) break;
+        placeOrderOnTeam(
+          order, team, lateWindow, remaining, shift, rules, hoursPerDay, budget,
+          state.get(team.id)!, siteCoords, speed, fleet, dayBudget, assignments,
+        );
+      }
+    }
+
+    // Anything still remaining means the whole horizon is full for this order.
     for (const l of order.lines) {
       const rem = remaining.get(l.orderLineId) ?? 0;
       if (rem > 0) unplaced.push(u(order, l.orderLineId, rem, "no_capacity"));

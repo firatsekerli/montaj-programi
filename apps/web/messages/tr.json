@@ -245,6 +245,8 @@
     "move": "Taşı",
     "moveTeam": "Ekip",
     "moveDate": "Tarih",
+    "late": "Gecikme",
+    "lateTitle": "Teslim tarihini aşıyor — bu iş teslim tarihinden sonraya planlandı",
     "unplacedTitle": "Planlanamayan siparişler",
     "unplacedNote": "Aşağıdaki kalemler bu haftaya yerleştirilemedi:",
     "unitsShort": "adet",

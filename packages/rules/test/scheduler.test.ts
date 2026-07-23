@@ -111,6 +111,30 @@ describe("delivery-driven scheduler", () => {
     expect(unplaced).toHaveLength(0);
   });
 
+  it("places deadline overflow on later days instead of dropping it", () => {
+    // 60 fire doors due in week 1 for ONE team (7/day×5 = 35 < 60). The overflow
+    // now lands in week 2 (past the deadline) rather than going unplaced.
+    const week1End = HORIZON[4]!;
+    const { assignments, unplaced } = schedule({
+      workingDays: HORIZON,
+      shift: dimakShift,
+      rules: dimakRules,
+      teams: [team()],
+      orders: [
+        order({
+          lines: [{ orderLineId: "l1", type: fullFrameSingleFire, quantity: 60, facts: {} }],
+          earliestDate: HORIZON[0]!,
+          deliveryDate: week1End,
+        }),
+      ],
+    });
+    // one team over two weeks = 7×10 = 70 ≥ 60 → everything placed, nothing dropped
+    expect(assignments.reduce((s, a) => s + a.units, 0)).toBe(60);
+    expect(unplaced).toHaveLength(0);
+    // and some of it is necessarily after the deadline
+    expect(assignments.some((a) => a.date > week1End)).toBe(true);
+  });
+
   it("flags orders that can't finish by their deadline", () => {
     // 100 doors due in one week; even 1 team over 5 days = 35 → rest unplaced.
     const week1 = HORIZON.slice(0, 5);
