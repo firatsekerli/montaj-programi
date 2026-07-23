@@ -38,6 +38,7 @@ export default async function EditWorkItemTypePage({
           requiredResource: row.required_resource ?? "",
           crewBaseline: row.crew_baseline ?? 2,
           perPersonBonus: row.per_person_bonus ?? 0,
+          allowParallelTeams: row.allow_parallel_teams ?? false,
         }}
       />
     </main>

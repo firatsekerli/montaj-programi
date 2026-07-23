@@ -295,9 +295,12 @@ export function schedule(input: ScheduleInput): ScheduleOutput {
       }
       const remaining = new Map(groupLines.map((l) => [l.orderLineId, l.quantity] as const));
       const subOrder: ScheduleOrder = { ...order, lines: groupLines };
+      const done = () => [...remaining.values()].every((r) => r <= 0);
+      // Types like industrial/sectional let several teams share the site in
+      // parallel; fire keeps one team unless the deadline forces a spill.
+      const parallel = groupLines.every((l) => l.type.allowParallelTeams === true);
 
       // Fill this crew group: in-house first, then least-loaded, then nearest.
-      // The primary team owns it; spill to the next only under deadline pressure.
       const fill = (win: string[]) => {
         const ordered = [...pool].sort(
           (a, b) =>
@@ -305,12 +308,27 @@ export function schedule(input: ScheduleInput): ScheduleOutput {
             loadInWindow(a.id, win) - loadInWindow(b.id, win) ||
             baseToSiteMin(a, order.siteId) - baseToSiteMin(b, order.siteId),
         );
-        for (const team of ordered) {
-          if ([...remaining.values()].every((r) => r <= 0)) break;
-          placeOrderOnTeam(
-            subOrder, team, win, remaining, shift, rules, hoursPerDay, budget,
-            state.get(team.id)!, siteCoords, speed, fleet, dayBudget, assignments,
-          );
+        if (parallel) {
+          // Work the teams concurrently, day by day, so the site finishes as
+          // early as possible — two teams may share it without deadline pressure.
+          for (const day of win) {
+            for (const team of ordered) {
+              if (done()) return;
+              placeOrderOnTeam(
+                subOrder, team, [day], remaining, shift, rules, hoursPerDay, budget,
+                state.get(team.id)!, siteCoords, speed, fleet, dayBudget, assignments,
+              );
+            }
+          }
+        } else {
+          // One team owns the site; spill to the next only under deadline pressure.
+          for (const team of ordered) {
+            if (done()) break;
+            placeOrderOnTeam(
+              subOrder, team, win, remaining, shift, rules, hoursPerDay, budget,
+              state.get(team.id)!, siteCoords, speed, fleet, dayBudget, assignments,
+            );
+          }
         }
       };
 

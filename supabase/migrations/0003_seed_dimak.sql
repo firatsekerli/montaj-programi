@@ -113,7 +113,7 @@ begin
   -- (fire doors +2, industrial +1 — from the spec table).
   update work_item_type set crew_baseline = 2, per_person_bonus = 2
     where tenant_id = v_tenant and id in (v_half_single, v_full_single, v_half_double, v_full_double);
-  update work_item_type set crew_baseline = 2, per_person_bonus = 1
+  update work_item_type set crew_baseline = 2, per_person_bonus = 1, allow_parallel_teams = true
     where tenant_id = v_tenant and id = v_industrial;
 
   -- People --------------------------------------------------------------------

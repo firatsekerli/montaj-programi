@@ -68,6 +68,7 @@ export const industrialDoor: WorkItemType = {
   effort: { hoursPerUnit: 4.3125, perAttr: { attr: "line.area_m2", coefficient: 0.1875 } },
   crewBaseline: 2,
   perPersonBonus: 1,
+  allowParallelTeams: true,
 };
 
 // ---- Capacity modifier rules (the "±%" bullet points in the spec) ----

@@ -17,6 +17,7 @@ export interface WorkItemTypeDefaults {
   requiredResource?: string;
   crewBaseline?: number;
   perPersonBonus?: number;
+  allowParallelTeams?: boolean;
 }
 
 export function WorkItemTypeForm({
@@ -133,6 +134,16 @@ export function WorkItemTypeForm({
         />
       </label>
       <span className="help">{t("requiredResourceHelp")}</span>
+
+      <label className="checkbox">
+        <input
+          type="checkbox"
+          name="allowParallelTeams"
+          defaultChecked={defaults.allowParallelTeams}
+        />
+        {t("allowParallelTeams")}
+      </label>
+      <span className="help">{t("allowParallelTeamsHelp")}</span>
 
       <button type="submit" className="btn" disabled={pending}>
         {submitLabel}

@@ -81,6 +81,28 @@ describe("delivery-driven scheduler", () => {
     expect(fireTeams).toEqual(new Set(["erkan"])); // fire goes to the idle fire crew
   });
 
+  it("lets two industrial crews share a site in parallel without deadline pressure", () => {
+    // 6 industrial doors at one site, comfortable deadline, two industrial crews.
+    // Industrial allows parallel teams → both crews work the site concurrently,
+    // finishing sooner instead of one crew doing all six over more days.
+    const a = team({ id: "A", capableTypeIds: [industrialDoor.id] });
+    const b = team({ id: "B", capableTypeIds: [industrialDoor.id] });
+    const { assignments } = schedule({
+      workingDays: HORIZON,
+      shift: dimakShift,
+      rules: dimakRules,
+      teams: [a, b],
+      orders: [
+        order({
+          orderCode: "SIP-IND",
+          lines: [{ orderLineId: "l1", type: industrialDoor, quantity: 6, facts: { "line.area_m2": 25 } }],
+        }),
+      ],
+    });
+    expect(new Set(assignments.map((x) => x.teamId))).toEqual(new Set(["A", "B"]));
+    expect(assignments.reduce((s, x) => s + x.units, 0)).toBe(6);
+  });
+
   it("does NOT put two of the same crew on one site unless under deadline pressure", () => {
     // 8 fire doors, comfortable deadline, two fire crews. One crew alone fits
     // (7/day×many days), so the site stays single-crew — no needless second team.

@@ -46,6 +46,13 @@ export interface WorkItemType {
    * crew scaling. Applies to both count and effort types.
    */
   perPersonBonus?: number;
+  /**
+   * If true, several teams may install this type at the SAME site in parallel
+   * (e.g. industrial / sectional doors) — the "one team per site" rule doesn't
+   * apply. If false/absent (e.g. fire doors), a site stays single-team and a
+   * second team is only added under deadline pressure.
+   */
+  allowParallelTeams?: boolean;
 }
 
 export interface ShiftContext {

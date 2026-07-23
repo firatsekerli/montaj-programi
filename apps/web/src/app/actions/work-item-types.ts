@@ -20,7 +20,12 @@ export interface WitFormState {
 // Columns added by later migrations — dropped on error so a lagging migration
 // (0011 required_resource, 0013 crew_baseline/per_person_bonus) can't make
 // creating a type fail outright.
-const OPTIONAL_COLS = ["required_resource", "crew_baseline", "per_person_bonus"] as const;
+const OPTIONAL_COLS = [
+  "required_resource",
+  "crew_baseline",
+  "per_person_bonus",
+  "allow_parallel_teams",
+] as const;
 
 /** A user-facing Turkish message for the common failures. */
 function friendly(error: { code?: string; message: string }): string {
@@ -60,6 +65,7 @@ function parseForm(formData: FormData) {
     required_resource: String(formData.get("requiredResource") ?? "").trim() || null,
     crew_baseline: Math.max(1, Math.round(Number(formData.get("crewBaseline") ?? 2)) || 2),
     per_person_bonus: Math.max(0, Number(formData.get("perPersonBonus") ?? 0) || 0),
+    allow_parallel_teams: formData.get("allowParallelTeams") === "on",
   };
   if (capacityModel === "count") {
     base.base_capacity = {

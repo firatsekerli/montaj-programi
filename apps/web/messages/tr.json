@@ -77,6 +77,8 @@
     "crewScalingHelp": "Yukarıdaki günlük adetler kaç kişilik ekip içindir (Dimak: 2 kişi) ve bu sayının üzerindeki her kişi için günde kaç adet eklenir. Örn: yangın kapısı 2, endüstriyel 1. Motor montaj adedini ekipteki kişi sayısına göre hesaplar; ekip formundaki \"günlük adet\" yalnızca doldurulduğunda bunu geçersiz kılar.",
     "requiredResource": "Gerekli kaynak",
     "requiredResourceHelp": "İsteğe bağlı: bu tipi monte etmek için paylaşılan bir ekipman gerekir (ör. endüstriyel kapı için \"manlift\"). Araçlar sayfasında aynı adı taşıyan ekipman sayısı, bu tipi aynı gün kaç ekibin monte edebileceğini sınırlar. Boş = kısıt yok.",
+    "allowParallelTeams": "Aynı şantiyede birden çok ekip çalışabilir",
+    "allowParallelTeamsHelp": "Açıksa bu tipte birden çok ekip aynı şantiyeye paralel girip işi daha erken bitirebilir (ör. endüstriyel, seksiyonel). Kapalıysa (ör. yangın kapısı) bir şantiyeye tek ekip girer; ikinci ekip yalnızca teslim tarihine yetişme baskısı varsa eklenir.",
     "edit": "Düzenle",
     "delete": "Sil",
     "create": "Oluştur",

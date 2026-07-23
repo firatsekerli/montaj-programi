@@ -125,6 +125,7 @@ export async function buildPlanningContext(supabase: Supabase): Promise<Planning
       requiredResource: row.required_resource ?? undefined,
       crewBaseline: row.crew_baseline ?? undefined,
       perPersonBonus: row.per_person_bonus ?? undefined,
+      allowParallelTeams: row.allow_parallel_teams ?? undefined,
     });
   }
 
