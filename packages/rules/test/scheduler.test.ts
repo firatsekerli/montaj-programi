@@ -118,6 +118,34 @@ describe("delivery-driven scheduler", () => {
     expect(new Set(assignments.map((x) => x.teamId)).size).toBe(1);
   });
 
+  it("starts with the site nearest the base when deadlines tie", () => {
+    // Two orders share the same window; NEAR is next to the base, FAR is ~80 km
+    // out. Even though FAR sorts first by code, NEAR (closer) is scheduled first
+    // and gets the earlier day.
+    const base = { lat: 39.95, lon: 32.85 };
+    const near = { lat: 39.96, lon: 32.86 };
+    const far = { lat: 39.4, lon: 32.2 };
+    const days = HORIZON.slice(0, 2);
+    const { assignments } = schedule({
+      workingDays: days,
+      shift: dimakShift,
+      rules: dimakRules,
+      teams: [team({ baseCoord: base })],
+      siteCoords: { NEAR: near, FAR: far },
+      orders: [
+        order({ orderId: "far", orderCode: "AAA", siteId: "FAR", earliestDate: days[0]!, deliveryDate: days[1]!,
+          lines: [{ orderLineId: "f", type: fullFrameSingleFire, quantity: 3, facts: {} }] }),
+        order({ orderId: "near", orderCode: "ZZZ", siteId: "NEAR", earliestDate: days[0]!, deliveryDate: days[1]!,
+          lines: [{ orderLineId: "n", type: fullFrameSingleFire, quantity: 6, facts: {} }] }),
+      ],
+    });
+    const first = (id: string) =>
+      Math.min(...assignments.filter((a) => a.orderId === id).map((a) => days.indexOf(a.date)));
+    // NEAR (6 doors) fills day 0; FAR's long round trip won't fit alongside it,
+    // so FAR moves to day 1 — proving the closer order was scheduled first.
+    expect(first("near")).toBeLessThan(first("far"));
+  });
+
   it("does NOT plan before the earliest (production-due) date", () => {
     const { assignments } = schedule({
       workingDays: HORIZON,

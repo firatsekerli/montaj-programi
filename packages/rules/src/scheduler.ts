@@ -245,11 +245,22 @@ export function schedule(input: ScheduleInput): ScheduleOutput {
     return load;
   };
 
-  // Most-urgent deadline first, then earliest start, then code for stability.
+  // Distance from the nearest team base to each order's site, so that when
+  // deadlines tie we start with the site closest to the depot/factory.
+  const orderDist = new Map<string, number>();
+  for (const o of orders) {
+    let min = Number.POSITIVE_INFINITY;
+    for (const t of teams) min = Math.min(min, baseToSiteMin(t, o.siteId));
+    orderDist.set(o.orderId, Number.isFinite(min) ? min : 0);
+  }
+
+  // Most-urgent deadline first, then earliest start, then nearest site (closer
+  // to base wins), then code for stability.
   const sorted = [...orders].sort(
     (a, b) =>
       (a.deliveryDate ?? FAR_FUTURE).localeCompare(b.deliveryDate ?? FAR_FUTURE) ||
       a.earliestDate.localeCompare(b.earliestDate) ||
+      (orderDist.get(a.orderId) ?? 0) - (orderDist.get(b.orderId) ?? 0) ||
       a.orderCode.localeCompare(b.orderCode),
   );
 
