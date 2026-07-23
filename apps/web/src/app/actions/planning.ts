@@ -230,7 +230,11 @@ export async function moveAssignment(assignmentId: string, teamId: string, date:
       "team.headcount": team.headcount,
       "day.overtime": ctx.shift.overtime,
     };
-    const unit = unitCostDays(type, ctx.shift, ctx.rules, facts);
+    // Match the scheduler: a per-team fixed günlük adet override wins; otherwise
+    // the engine computes the unit cost (crew bonus, sizing, rules included).
+    const override = team.dailyCapOverride?.[type.id];
+    const unit =
+      override && override > 0 ? 1 / override : unitCostDays(type, ctx.shift, ctx.rules, facts);
     // Single moved assignment: charge a base→site→base round trip from coords.
     const siteCoord = site ? ctx.siteCoords[site.id] : undefined;
     const roundTrip =
