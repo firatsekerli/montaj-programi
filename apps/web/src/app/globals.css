@@ -787,19 +787,41 @@ button.pin:hover {
   opacity: 1;
   filter: brightness(1.2);
 }
-button.card-move {
-  margin-inline-start: 0.3rem;
-  padding: 0 0.15rem;
-  font-size: 0.72rem;
-  line-height: 1;
-  vertical-align: middle;
-  background: none;
-  border: none;
-  cursor: pointer;
-  opacity: 0.7;
+/* Order-code line: title on the left, action chips pushed to the right. */
+.card-plan > strong {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 0.25rem;
 }
-button.card-move:hover {
-  opacity: 1;
+.card-actions {
+  margin-inline-start: auto;
+  display: inline-flex;
+  gap: 0.25rem;
+}
+button.card-action {
+  padding: 0.05rem 0.35rem;
+  font-size: 0.62rem;
+  font-weight: 600;
+  line-height: 1.4;
+  border-radius: 999px;
+  background: var(--panel);
+  border: 1px solid var(--border);
+  color: var(--muted);
+  cursor: pointer;
+  white-space: nowrap;
+}
+button.card-action:hover {
+  color: var(--text);
+  border-color: var(--accent);
+}
+button.card-action.record {
+  color: #7bd88f;
+  border-color: color-mix(in srgb, #2e7d32 60%, var(--border));
+}
+button.card-action.record:hover {
+  border-color: #2e7d32;
+  background: color-mix(in srgb, #2e7d32 18%, var(--panel));
 }
 .card-move-panel {
   display: flex;

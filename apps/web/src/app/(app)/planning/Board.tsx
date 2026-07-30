@@ -277,10 +277,10 @@ function Card({
           </button>
         )}
         {!doneCard && (
-          <>
+          <span className="card-actions">
             <button
               type="button"
-              className="card-move"
+              className="card-action"
               title={t("moveTitle")}
               onPointerDown={stop}
               onClick={(e) => {
@@ -291,11 +291,11 @@ function Card({
                 setRecording(false);
               }}
             >
-              📅
+              {t("move")}
             </button>
             <button
               type="button"
-              className="card-move"
+              className="card-action record"
               title={t("recordTitle")}
               onPointerDown={stop}
               onClick={(e) => {
@@ -305,9 +305,9 @@ function Card({
                 setEditing(false);
               }}
             >
-              ✓
+              {t("recordChip")}
             </button>
-          </>
+          </span>
         )}
       </strong>
       <span className="card-line">

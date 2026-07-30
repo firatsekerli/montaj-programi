@@ -252,6 +252,7 @@
     "late": "Gecikme",
     "lateTitle": "Teslim tarihini aşıyor — bu iş teslim tarihinden sonraya planlandı",
     "recordTitle": "Takılan adedi gir — kalan yeniden planlanır",
+    "recordChip": "Takıldı",
     "installed": "Takılan adet",
     "installedDone": "{n} takıldı",
     "save": "Kaydet",
