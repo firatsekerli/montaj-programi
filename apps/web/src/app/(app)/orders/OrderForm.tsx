@@ -7,6 +7,10 @@ interface Option {
   id: string;
   name: string | null;
 }
+interface TypeOption extends Option {
+  /** True when this type needs a shared resource (e.g. industrial → manlift). */
+  requiresResource?: boolean;
+}
 interface Line {
   work_item_type_id: string;
   quantity: number;
@@ -23,7 +27,7 @@ export function OrderForm({
 }: {
   action: (formData: FormData) => void | Promise<void>;
   sites: Option[];
-  types: Option[];
+  types: TypeOption[];
   defaults?: {
     code?: string;
     siteId?: string;
@@ -32,6 +36,7 @@ export function OrderForm({
     productionDue?: string;
     requiresDemolition?: boolean;
     productionConfirmed?: boolean;
+    requiresResource?: boolean;
     status?: string;
     lines?: Line[];
   };
@@ -128,6 +133,20 @@ export function OrderForm({
         />
         {t("productionConfirmed")}
       </label>
+
+      {lines.some((l) => types.find((ty) => ty.id === l.work_item_type_id)?.requiresResource) && (
+        <>
+          <label className="checkbox">
+            <input
+              type="checkbox"
+              name="requires_resource"
+              defaultChecked={defaults.requiresResource ?? true}
+            />
+            {t("requiresManlift")}
+          </label>
+          <span className="help">{t("requiresManliftHelp")}</span>
+        </>
+      )}
 
       <fieldset>
         <legend>{t("lines")}</legend>

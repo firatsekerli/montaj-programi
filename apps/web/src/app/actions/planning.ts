@@ -113,21 +113,41 @@ export async function generatePlan() {
   // Discard only the previous AUTO-planned rows; kept/manual ones stay.
   if (deleteIds.length) await supabase.from("assignment").delete().in("id", deleteIds);
 
-  const { data: orders } = await supabase
-    .from("work_order")
-    .select(
-      "id, code, delivery_date, production_ready_date, production_confirmed, requires_demolition, site:site_id(id, access_overhead_min), order_line(id, work_item_type_id, quantity, attributes)",
-    )
-    .in("status", ["backlog", "planned"]);
+  // Include requires_resource (0017) when present; fall back if behind.
+  type OrderRow = {
+    id: string;
+    code: string;
+    delivery_date: string | null;
+    production_ready_date: string | null;
+    production_confirmed: boolean;
+    requires_demolition: boolean;
+    requires_resource?: boolean;
+    site: unknown;
+    order_line: Array<{ id: string; work_item_type_id: string; quantity: number; attributes: Record<string, unknown> | null }> | null;
+  };
+  const orderCols =
+    "id, code, delivery_date, production_ready_date, production_confirmed, requires_demolition, site:site_id(id, access_overhead_min), order_line(id, work_item_type_id, quantity, attributes)";
+  let orders = (
+    await supabase.from("work_order").select(`${orderCols}, requires_resource`).in("status", ["backlog", "planned"])
+  ).data as OrderRow[] | null;
+  if (!orders) {
+    orders = (await supabase.from("work_order").select(orderCols).in("status", ["backlog", "planned"])).data as
+      | OrderRow[]
+      | null;
+  }
 
   const scheduleOrders: ScheduleOrder[] = [];
   for (const order of orders ?? []) {
     const site = one<{ id: string; access_overhead_min: number }>(order.site);
     if (!site) continue;
+    // Manlift asked per order: when the order doesn't need it, strip the type's
+    // required resource for this order's lines so nothing is reserved.
+    const needsResource = order.requires_resource !== false;
     const lines = (order.order_line ?? [])
       .map((line) => {
-        const type = ctx.typeMap.get(line.work_item_type_id);
-        if (!type) return null;
+        const base = ctx.typeMap.get(line.work_item_type_id);
+        if (!base) return null;
+        const type = !needsResource && base.requiredResource ? { ...base, requiredResource: undefined } : base;
         const remaining = line.quantity - (keptUnits.get(line.id) ?? 0);
         if (remaining <= 0) return null;
         return {

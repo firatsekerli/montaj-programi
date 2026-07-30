@@ -22,6 +22,10 @@ function parse(formData: FormData) {
     delivery_date: String(formData.get("delivery_date") ?? "").trim() || null,
     requires_demolition: formData.get("requires_demolition") === "on",
     production_confirmed: formData.get("production_confirmed") === "on",
+    // Manlift asked at order entry. The checkbox only renders for orders with a
+    // resource-requiring line; for other orders it's absent and this is false,
+    // which is harmless (those lines don't reserve a resource anyway).
+    requires_resource: formData.get("requires_resource") === "on",
     status: String(formData.get("status") ?? "backlog"),
   };
 }
@@ -187,12 +191,16 @@ export async function createOrder(formData: FormData) {
   const lines = parseLines(formData);
   const productionDue = await computeProductionDue(supabase, values.delivery_date, lines);
 
-  const { data, error } = await supabase
-    .from("work_order")
-    .insert({ tenant_id: tenantId, ...values, production_ready_date: productionDue })
-    .select("id")
-    .single();
-  if (error) throw new Error(error.message);
+  // Tolerant of a lagging migration: retry without requires_resource (0017).
+  const payload: Record<string, unknown> = { tenant_id: tenantId, ...values, production_ready_date: productionDue };
+  let ins = await supabase.from("work_order").insert(payload).select("id").single();
+  if (ins.error && "requires_resource" in payload) {
+    const { requires_resource: _d, ...rest } = payload;
+    void _d;
+    ins = await supabase.from("work_order").insert(rest).select("id").single();
+  }
+  if (ins.error || !ins.data) throw new Error(ins.error?.message ?? "Sipariş oluşturulamadı.");
+  const data = ins.data;
 
   if (lines.length) {
     const { error: le } = await supabase
@@ -214,11 +222,15 @@ export async function updateOrder(id: string, formData: FormData) {
   const lines = parseLines(formData);
   const productionDue = await computeProductionDue(supabase, values.delivery_date, lines);
 
-  const { error } = await supabase
-    .from("work_order")
-    .update({ ...values, production_ready_date: productionDue })
-    .eq("id", id);
-  if (error) throw new Error(error.message);
+  // Tolerant of a lagging migration: retry without requires_resource (0017).
+  const payload: Record<string, unknown> = { ...values, production_ready_date: productionDue };
+  let upd = await supabase.from("work_order").update(payload).eq("id", id);
+  if (upd.error && "requires_resource" in payload) {
+    const { requires_resource: _d, ...rest } = payload;
+    void _d;
+    upd = await supabase.from("work_order").update(rest).eq("id", id);
+  }
+  if (upd.error) throw new Error(upd.error.message);
 
   await reconcileLines(supabase, tenantId, id, lines);
   await upsertProductionTask(supabase, tenantId, id, values.code, productionDue);

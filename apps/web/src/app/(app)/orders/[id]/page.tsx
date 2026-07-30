@@ -9,16 +9,28 @@ export default async function EditOrderPage({ params }: { params: Promise<{ id: 
   const t = await getTranslations("orders");
   const tc = await getTranslations("crud");
   const supabase = await createSupabaseServerClient();
-  const [{ data: row }, { data: sites }, { data: types }] = await Promise.all([
+  const [{ data: row }, { data: sites }] = await Promise.all([
     supabase
       .from("work_order")
       .select("*, order_line(work_item_type_id, quantity)")
       .eq("id", id)
       .maybeSingle(),
     supabase.from("site").select("id, name").order("name"),
-    supabase.from("work_item_type").select("id, name").order("name"),
   ]);
   if (!row) notFound();
+
+  // required_resource (0011) marks types that need a manlift; tolerant if behind.
+  let typeRows = (await supabase.from("work_item_type").select("id, name, required_resource").order("name")).data as
+    | Array<{ id: string; name: string; required_resource?: string | null }>
+    | null;
+  if (!typeRows) {
+    typeRows = (await supabase.from("work_item_type").select("id, name").order("name")).data as typeof typeRows;
+  }
+  const types = (typeRows ?? []).map((r) => ({
+    id: r.id,
+    name: r.name,
+    requiresResource: Boolean(r.required_resource),
+  }));
 
   // Collapse any duplicate-type rows (from the old accumulating-save bug) so the
   // form shows one line per type; saving then persists the cleaned-up set.
@@ -35,7 +47,7 @@ export default async function EditOrderPage({ params }: { params: Promise<{ id: 
       <OrderForm
         action={updateOrder.bind(null, id)}
         sites={sites ?? []}
-        types={types ?? []}
+        types={types}
         submitLabel={tc("save")}
         defaults={{
           code: row.code,
@@ -45,6 +57,7 @@ export default async function EditOrderPage({ params }: { params: Promise<{ id: 
           productionDue: row.production_ready_date ?? undefined,
           requiresDemolition: row.requires_demolition,
           productionConfirmed: row.production_confirmed,
+          requiresResource: row.requires_resource ?? true,
           status: row.status,
           lines,
         }}
