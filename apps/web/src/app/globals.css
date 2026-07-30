@@ -825,6 +825,22 @@ button.card-move:hover {
   text-align: center;
   padding: 0.3rem;
 }
+.card-record-label {
+  display: flex;
+  flex-direction: column;
+  gap: 0.2rem;
+  font-size: 0.72rem;
+  color: var(--muted);
+}
+/* Completed (installed) card — locked, shown in green. */
+.card-plan.done {
+  border-color: #2e7d32;
+  background: color-mix(in srgb, #2e7d32 14%, var(--panel-2));
+  cursor: default;
+}
+.card-plan.done .card-cost {
+  color: #7bd88f;
+}
 
 /* ---- Month calendar (dashboard) ---- */
 .cal-panel {

@@ -43,7 +43,7 @@ export default async function PlanningPage({
   let assignments: BoardAssignment[] = [];
   if (plan) {
     const cols =
-      "id, team_id, assign_date, units, estimated_cost, work_order:order_id(code, delivery_date), order_line:order_line_id(work_item_type:work_item_type_id(name))";
+      "id, team_id, assign_date, units, estimated_cost, status, work_order:order_id(code, delivery_date), order_line:order_line_id(work_item_type:work_item_type_id(name))";
     // Include `manual` (0014) when present; fall back if the migration is behind.
     const run = (sel: string) =>
       supabase
@@ -67,6 +67,7 @@ export default async function PlanningPage({
         typeName: wit?.name ?? "",
         manual: a.manual === true,
         deliveryDate: wo?.delivery_date ?? null,
+        status: String(a.status ?? "planned"),
       };
     });
   }

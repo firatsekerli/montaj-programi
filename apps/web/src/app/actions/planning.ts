@@ -418,6 +418,34 @@ export async function moveAssignment(
 }
 
 /**
+ * Record how many doors were actually installed on a card. The installed count
+ * becomes a completed (locked) card; the shortfall (planned − installed) returns
+ * to the order's remaining and is re-planned as new cards. installed = 0 leaves
+ * the card to be re-planned as-is.
+ */
+export async function recordInstalled(assignmentId: string, installed: number) {
+  const supabase = await createSupabaseServerClient();
+  const { data: a } = await supabase
+    .from("assignment")
+    .select("id, units, team_id, assign_date, plan_id")
+    .eq("id", assignmentId)
+    .single();
+  if (!a) throw new Error("Atama bulunamadı.");
+  const done = Math.max(0, Math.min(Math.round(installed), a.units as number));
+
+  if (done <= 0) {
+    await supabase.from("assignment").update({ status: "planned" }).eq("id", assignmentId);
+  } else {
+    await supabase.from("assignment").update({ units: done, status: "completed" }).eq("id", assignmentId);
+    // Re-cost the day so the completed card's fill reflects the installed count.
+    const ctx = await buildPlanningContext(supabase);
+    await recomputeTeamDay(supabase, ctx, a.plan_id as string, a.team_id as string, a.assign_date as string);
+  }
+  // Re-plan: the installed part stays committed; the shortfall becomes new cards.
+  await generatePlan();
+}
+
+/**
  * Release a manually-pinned card back to auto-planning: clear its `manual` flag
  * so the next "Yeniden Oluştur" recomputes it. Tolerant of a lagging migration.
  */

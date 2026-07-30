@@ -12,7 +12,7 @@ import {
   useSensors,
   type DragEndEvent,
 } from "@dnd-kit/core";
-import { moveAssignment, unpinAssignment } from "@/app/actions/planning";
+import { moveAssignment, recordInstalled, unpinAssignment } from "@/app/actions/planning";
 
 export interface BoardAssignment {
   id: string;
@@ -26,6 +26,8 @@ export interface BoardAssignment {
   manual?: boolean;
   /** Order's delivery deadline; a card past it is "late" and shown in red. */
   deliveryDate?: string | null;
+  /** planned | in_progress | completed | blocked. Completed = installed/locked. */
+  status?: string;
 }
 interface TeamRow {
   id: string;
@@ -92,6 +94,13 @@ export function PlanningBoard({
     });
   }
 
+  function onRecord(id: string, installed: number) {
+    startTransition(async () => {
+      await recordInstalled(id, installed);
+      router.refresh();
+    });
+  }
+
   return (
     <DndContext sensors={sensors} onDragEnd={onDragEnd}>
       {notice && (
@@ -124,6 +133,7 @@ export function PlanningBoard({
               items={items}
               onUnpin={onUnpin}
               onMove={apply}
+              onRecord={onRecord}
             />
           ))}
         </div>
@@ -139,6 +149,7 @@ function BoardRow({
   items,
   onUnpin,
   onMove,
+  onRecord,
 }: {
   team: TeamRow;
   teams: TeamRow[];
@@ -146,6 +157,7 @@ function BoardRow({
   items: BoardAssignment[];
   onUnpin: (id: string) => void;
   onMove: (id: string, teamId: string, date: string) => void;
+  onRecord: (id: string, installed: number) => void;
 }) {
   return (
     <>
@@ -162,6 +174,7 @@ function BoardRow({
             teams={teams}
             onUnpin={onUnpin}
             onMove={onMove}
+            onRecord={onRecord}
           />
         );
       })}
@@ -176,6 +189,7 @@ function Cell({
   teams,
   onUnpin,
   onMove,
+  onRecord,
 }: {
   cellId: string;
   usage: number;
@@ -183,6 +197,7 @@ function Cell({
   teams: TeamRow[];
   onUnpin: (id: string) => void;
   onMove: (id: string, teamId: string, date: string) => void;
+  onRecord: (id: string, installed: number) => void;
 }) {
   const { setNodeRef, isOver } = useDroppable({ id: cellId });
   const over = usage > 1.0001;
@@ -198,7 +213,7 @@ function Cell({
         </div>
       </div>
       {cards.map((c) => (
-        <Card key={c.id} a={c} teams={teams} onUnpin={onUnpin} onMove={onMove} />
+        <Card key={c.id} a={c} teams={teams} onUnpin={onUnpin} onMove={onMove} onRecord={onRecord} />
       ))}
     </div>
   );
@@ -209,32 +224,38 @@ function Card({
   teams,
   onUnpin,
   onMove,
+  onRecord,
 }: {
   a: BoardAssignment;
   teams: TeamRow[];
   onUnpin: (id: string) => void;
   onMove: (id: string, teamId: string, date: string) => void;
+  onRecord: (id: string, installed: number) => void;
 }) {
   const t = useTranslations("planning");
   const { attributes, listeners, setNodeRef, transform, isDragging } = useDraggable({ id: a.id });
   const [editing, setEditing] = useState(false);
+  const [recording, setRecording] = useState(false);
   const [team, setTeam] = useState(a.teamId);
   const [date, setDate] = useState(a.date);
+  const [installed, setInstalled] = useState(a.units);
   const stop = (e: React.SyntheticEvent) => e.stopPropagation();
   const style = transform
     ? { transform: `translate(${transform.x}px, ${transform.y}px)`, zIndex: 20 }
     : undefined;
   const late = Boolean(a.deliveryDate && a.date > a.deliveryDate);
+  const doneCard = a.status === "completed";
 
   return (
     <div
       ref={setNodeRef}
       style={style}
-      className={`card-plan${isDragging ? " dragging" : ""}${late ? " late" : ""}`}
+      className={`card-plan${isDragging ? " dragging" : ""}${late ? " late" : ""}${doneCard ? " done" : ""}`}
       {...listeners}
       {...attributes}
     >
       <strong>
+        {doneCard && "✓ "}
         {a.orderCode}
         {late && (
           <span className="late-badge" title={t("lateTitle")}>
@@ -255,25 +276,46 @@ function Card({
             📌
           </button>
         )}
-        <button
-          type="button"
-          className="card-move"
-          title={t("moveTitle")}
-          onPointerDown={stop}
-          onClick={(e) => {
-            stop(e);
-            setTeam(a.teamId);
-            setDate(a.date);
-            setEditing((v) => !v);
-          }}
-        >
-          📅
-        </button>
+        {!doneCard && (
+          <>
+            <button
+              type="button"
+              className="card-move"
+              title={t("moveTitle")}
+              onPointerDown={stop}
+              onClick={(e) => {
+                stop(e);
+                setTeam(a.teamId);
+                setDate(a.date);
+                setEditing((v) => !v);
+                setRecording(false);
+              }}
+            >
+              📅
+            </button>
+            <button
+              type="button"
+              className="card-move"
+              title={t("recordTitle")}
+              onPointerDown={stop}
+              onClick={(e) => {
+                stop(e);
+                setInstalled(a.units);
+                setRecording((v) => !v);
+                setEditing(false);
+              }}
+            >
+              ✓
+            </button>
+          </>
+        )}
       </strong>
       <span className="card-line">
         {a.units}× {a.typeName}
       </span>
-      <span className="card-cost">{t("dayShare", { pct: Math.round(a.cost * 100) })}</span>
+      <span className="card-cost">
+        {doneCard ? t("installedDone", { n: a.units }) : t("dayShare", { pct: Math.round(a.cost * 100) })}
+      </span>
 
       {editing && (
         <div className="card-move-panel" onPointerDown={stop}>
@@ -295,6 +337,32 @@ function Card({
             }}
           >
             {t("move")}
+          </button>
+        </div>
+      )}
+
+      {recording && (
+        <div className="card-move-panel" onPointerDown={stop}>
+          <label className="card-record-label">
+            {t("installed")}
+            <input
+              type="number"
+              min="0"
+              max={a.units}
+              value={installed}
+              onChange={(e) => setInstalled(Number(e.target.value))}
+            />
+          </label>
+          <button
+            type="button"
+            className="btn-ghost"
+            onClick={(e) => {
+              stop(e);
+              setRecording(false);
+              onRecord(a.id, installed);
+            }}
+          >
+            {t("save")}
           </button>
         </div>
       )}
