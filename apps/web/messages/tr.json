@@ -270,11 +270,17 @@
   },
   "notifications": {
     "title": "Bildirimler",
-    "subtitle": "Operasyon bildirimleri — üretimin tamamlanması gereken tarihler.",
+    "subtitle": "Operasyon görevleri — tamamladıkça kutucuğu işaretleyin.",
     "order": "Sipariş",
     "due": "Son Tarih",
+    "dueShort": "Son tarih",
     "message": "Mesaj",
-    "empty": "Açık bildirim yok."
+    "empty": "Açık görev yok.",
+    "kind": {
+      "production_check": "Üretim",
+      "manlift_transfer": "Manlift transferi",
+      "other": "Görev"
+    }
   },
   "order": {
     "status": {

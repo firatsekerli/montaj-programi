@@ -8,6 +8,7 @@ import {
   shiftHours,
   unitCostDays,
   type Coord,
+  type PlannedAssignment,
   type ScheduleOrder,
 } from "@montaj/rules";
 import { getCurrentContext } from "@/lib/auth";
@@ -228,7 +229,14 @@ export async function generatePlan() {
     if (error) throw new Error(error.message);
   }
 
+  // Operator tasks: transfer the manlift (or any pooled resource) to a site the
+  // working day before it is needed there. Reconciled by dedup_key so ticks the
+  // operator already made survive a regenerate.
+  const siteByOrder = new Map(scheduleOrders.map((o) => [o.orderId, o.siteId] as const));
+  await syncManliftTransferTasks(supabase, ctx, tenantId, assignments, siteByOrder);
+
   revalidatePath("/planning");
+  revalidatePath("/notifications");
 }
 
 /**
@@ -318,6 +326,135 @@ function fmtTR(iso: string): string {
     year: "numeric",
     timeZone: "UTC",
   }).format(new Date(`${iso}T00:00:00Z`));
+}
+
+type DesiredTask = {
+  dedupKey: string;
+  relatedOrderId: string | null;
+  dueDate: string | null;
+  payload: Record<string, unknown>;
+};
+
+/**
+ * Reconcile the tasks of one kind against a freshly-derived desired set, keyed
+ * by dedup_key: insert new keys, refresh existing ones (without touching their
+ * status, so an operator's "done" tick survives), and remove open keys that are
+ * no longer needed (done ones are kept as history). Tolerant of a lagging
+ * migration: if dedup_key isn't there yet, it no-ops instead of throwing.
+ */
+async function reconcileTasks(
+  supabase: Supabase,
+  tenantId: string,
+  kind: string,
+  desired: DesiredTask[],
+) {
+  const existingRes = await supabase
+    .from("task")
+    .select("id, dedup_key, status")
+    .eq("tenant_id", tenantId)
+    .eq("kind", kind);
+  if (existingRes.error) return; // dedup_key column not available yet — skip.
+  const existing = (existingRes.data ?? []) as Array<{
+    id: string;
+    dedup_key: string | null;
+    status: string;
+  }>;
+  const byKey = new Map(existing.filter((e) => e.dedup_key).map((e) => [e.dedup_key as string, e]));
+  const desiredKeys = new Set(desired.map((d) => d.dedupKey));
+
+  for (const d of desired) {
+    const ex = byKey.get(d.dedupKey);
+    if (!ex) {
+      await supabase.from("task").insert({
+        tenant_id: tenantId,
+        kind,
+        related_order_id: d.relatedOrderId,
+        due_date: d.dueDate,
+        assignee_role: "ops",
+        status: "open",
+        payload: d.payload,
+        dedup_key: d.dedupKey,
+      });
+    } else {
+      // Refresh details but leave status alone — the operator may have ticked it.
+      await supabase
+        .from("task")
+        .update({ related_order_id: d.relatedOrderId, due_date: d.dueDate, payload: d.payload })
+        .eq("id", ex.id);
+    }
+  }
+  // Drop open tasks whose key is gone; keep done ones as a record of the transfer.
+  const obsolete = existing
+    .filter((e) => e.dedup_key && e.status === "open" && !desiredKeys.has(e.dedup_key))
+    .map((e) => e.id);
+  if (obsolete.length) await supabase.from("task").delete().in("id", obsolete);
+}
+
+/**
+ * Derive "transfer the manlift the day before install" operator tasks from the
+ * freshly-planned assignments. A pooled resource (manlift) needed at a different
+ * site than its previous install-day must be moved there; the task is due one
+ * working day before that install day.
+ */
+async function syncManliftTransferTasks(
+  supabase: Supabase,
+  ctx: PlanningContext,
+  tenantId: string,
+  assignments: PlannedAssignment[],
+  siteByOrder: Map<string, string>,
+) {
+  // Assets that belong to a shared resource pool (e.g. manlifts) → their kind.
+  const poolKind = new Map<string, string>();
+  for (const [kind, ids] of Object.entries(ctx.resources)) for (const id of ids) poolKind.set(id, kind);
+  if (poolKind.size === 0) {
+    await reconcileTasks(supabase, tenantId, "manlift_transfer", []);
+    return;
+  }
+
+  // Distinct (asset, install-day, site) the resource is committed to.
+  const byAsset = new Map<string, Array<{ date: string; siteId: string; orderId: string }>>();
+  for (const a of assignments) {
+    const siteId = siteByOrder.get(a.orderId);
+    if (!siteId) continue;
+    for (const assetId of a.assetIds ?? []) {
+      if (!poolKind.has(assetId)) continue;
+      const list = byAsset.get(assetId) ?? [];
+      if (!list.some((x) => x.date === a.date && x.siteId === siteId)) {
+        list.push({ date: a.date, siteId, orderId: a.orderId });
+      }
+      byAsset.set(assetId, list);
+    }
+  }
+
+  const { data: assetRows } = await supabase.from("asset").select("id, name");
+  const assetName = new Map<string, string>((assetRows ?? []).map((r) => [r.id as string, r.name as string]));
+  const { data: siteRows } = await supabase.from("site").select("id, name");
+  const siteName = new Map<string, string>((siteRows ?? []).map((r) => [r.id as string, r.name as string]));
+
+  const desired: DesiredTask[] = [];
+  for (const [assetId, listRaw] of byAsset) {
+    // Walk the resource's install-days in order; a change of site needs a move.
+    const list = [...listRaw].sort((x, y) =>
+      x.date === y.date ? x.siteId.localeCompare(y.siteId) : x.date.localeCompare(y.date),
+    );
+    let prevSite: string | null = null;
+    for (const entry of list) {
+      if (entry.siteId === prevSite) continue; // stays on site — nothing to move.
+      prevSite = entry.siteId;
+      const transferDay = subtractWorkingDays(entry.date, 1, ctx.calendar.workingWeekdays);
+      const equip = assetName.get(assetId) ?? poolKind.get(assetId) ?? "Manlift";
+      const site = siteName.get(entry.siteId) ?? "şantiye";
+      const message = `${equip}, ${fmtTR(entry.date)} montajı için ${site} şantiyesine ${fmtTR(transferDay)} tarihinde transfer edilmeli.`;
+      desired.push({
+        dedupKey: `${assetId}:${entry.date}:${entry.siteId}`,
+        relatedOrderId: entry.orderId,
+        dueDate: transferDay,
+        payload: { message, kind: "manlift_transfer", assetId, siteId: entry.siteId, installDate: entry.date },
+      });
+    }
+  }
+
+  await reconcileTasks(supabase, tenantId, "manlift_transfer", desired);
 }
 
 /**
