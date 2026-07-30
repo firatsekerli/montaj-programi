@@ -241,9 +241,14 @@ export async function updateOrder(id: string, formData: FormData) {
 
 export async function deleteOrder(id: string) {
   const supabase = await createSupabaseServerClient();
+  // assignment.order_id references work_order WITHOUT on-delete-cascade, so its
+  // rows would block the delete. Remove the order's assignments first; order_line
+  // and task rows cascade on their own.
+  await supabase.from("assignment").delete().eq("order_id", id);
   const { error } = await supabase.from("work_order").delete().eq("id", id);
   if (error) throw new Error(error.message);
   revalidatePath("/orders");
+  revalidatePath("/planning");
 }
 
 export async function setOrderStatus(id: string, status: string) {
