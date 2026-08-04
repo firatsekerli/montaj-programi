@@ -332,13 +332,25 @@ export function schedule(input: ScheduleInput): ScheduleOutput {
             }
           }
         } else {
-          // One team owns the site; spill to the next only under deadline pressure.
-          for (const team of ordered) {
-            if (done()) break;
-            placeOrderOnTeam(
-              subOrder, team, win, remaining, shift, rules, hoursPerDay, budget,
-              state.get(team.id)!, siteCoords, speed, fleet, dayBudget, assignments,
-            );
+          // One crew owns the site and does the bulk. A second same-type crew
+          // may join the SAME site — but only on days it would otherwise sit
+          // completely idle, so an idle team continues on the site (finishing it
+          // sooner) while a crew already working elsewhere that day is never
+          // shuffled onto a second fire site. Day-by-day so the primary fills
+          // each day first and only its overflow spills to an idle helper.
+          const primaryId = ordered[0]?.id;
+          for (const day of win) {
+            for (const team of ordered) {
+              if (done()) return;
+              if (team.id !== primaryId) {
+                const free = budget.get(team.id)?.get(day) ?? dayBudget;
+                if (free < dayBudget - 1e-9) continue; // busy that day — leave it.
+              }
+              placeOrderOnTeam(
+                subOrder, team, [day], remaining, shift, rules, hoursPerDay, budget,
+                state.get(team.id)!, siteCoords, speed, fleet, dayBudget, assignments,
+              );
+            }
           }
         }
       };

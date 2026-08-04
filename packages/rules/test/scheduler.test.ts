@@ -103,9 +103,12 @@ describe("delivery-driven scheduler", () => {
     expect(assignments.reduce((s, x) => s + x.units, 0)).toBe(6);
   });
 
-  it("does NOT put two of the same crew on one site unless under deadline pressure", () => {
-    // 8 fire doors, comfortable deadline, two fire crews. One crew alone fits
-    // (7/day×many days), so the site stays single-crew — no needless second team.
+  it("lets an idle same-type crew join a fire site to fill its empty days", () => {
+    // 8 fire doors, two fire crews, comfortable deadline. The primary does the
+    // bulk (7 on day 0); the second crew is otherwise idle, so it joins the same
+    // site to finish it the same day instead of sitting empty while the site runs
+    // over into day 1. Two-of-the-same-crew on one site is now allowed when the
+    // helper would otherwise be idle.
     const a = team({ id: "A", capableTypeIds: [fullFrameSingleFire.id] });
     const b = team({ id: "B", capableTypeIds: [fullFrameSingleFire.id] });
     const { assignments } = schedule({
@@ -115,7 +118,34 @@ describe("delivery-driven scheduler", () => {
       teams: [a, b],
       orders: [order({ lines: [{ orderLineId: "l1", type: fullFrameSingleFire, quantity: 8, facts: {} }] })],
     });
-    expect(new Set(assignments.map((x) => x.teamId)).size).toBe(1);
+    // Both idle crews share the site, and it wraps up on the first day.
+    expect(new Set(assignments.map((x) => x.teamId)).size).toBe(2);
+    expect(new Set(assignments.map((x) => x.date)).size).toBe(1);
+  });
+
+  it("does NOT drag a crew that is busy that day onto a second fire site", () => {
+    // A is the primary (lower preferenceWeight). B is already fully booked on
+    // day 0 (a committed assignment), so it must NOT be pulled onto A's site to
+    // absorb the day-0 overflow — that overflow waits for A's own day 1 instead.
+    const a = team({ id: "A", preferenceWeight: 1, capableTypeIds: [fullFrameSingleFire.id] });
+    const b = team({ id: "B", preferenceWeight: 9, capableTypeIds: [fullFrameSingleFire.id] });
+    const day0 = HORIZON[0]!;
+    const { assignments } = schedule({
+      workingDays: HORIZON,
+      shift: dimakShift,
+      rules: dimakRules,
+      teams: [a, b],
+      committed: [{ teamId: "B", date: day0, cost: 1 }], // B is booked solid on day 0.
+      orders: [
+        // 9 doors = one full day (7) plus a 2-door overflow.
+        order({ orderId: "big", siteId: "siteA", earliestDate: day0, deliveryDate: HORIZON[4]!,
+          lines: [{ orderLineId: "l1", type: fullFrameSingleFire, quantity: 9, facts: {} }] }),
+      ],
+    });
+    // Day 0 belongs to A alone; B (busy) is left out and never joins the site.
+    const day0Teams = new Set(assignments.filter((x) => x.date === day0).map((x) => x.teamId));
+    expect(day0Teams).toEqual(new Set(["A"]));
+    expect(assignments.some((x) => x.teamId === "B")).toBe(false);
   });
 
   it("starts with the site nearest the base when deadlines tie", () => {
