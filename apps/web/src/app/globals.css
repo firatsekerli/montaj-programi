@@ -582,7 +582,9 @@ label.checkbox input {
   border: 1px solid var(--border);
   border-radius: var(--radius);
   overflow: hidden;
-  min-width: 720px;
+  min-width: 820px;
+  /* Width of an empty weekend column (widens to 1fr once a card lands on it). */
+  --wk-narrow: 40px;
 }
 .board-cell {
   background: var(--panel);
@@ -596,6 +598,25 @@ label.checkbox input {
   text-align: center;
   min-height: 0;
   font-weight: 600;
+}
+/* Weekend columns: dimmed, and a narrow strip until used. */
+.board-cell.weekend {
+  background: color-mix(in srgb, var(--panel-2) 60%, var(--bg));
+}
+.board-cell.head.weekend {
+  background: color-mix(in srgb, var(--panel-2) 80%, var(--bg));
+}
+.board-cell.narrow {
+  padding: 0.35rem 0.15rem;
+}
+.board-cell.head.narrow {
+  font-size: 0.62rem;
+  line-height: 1.15;
+  word-break: break-word;
+}
+/* An empty narrow weekend cell hides its usage meter to stay slim. */
+.board-cell.drop.narrow .usage {
+  display: none;
 }
 .board-cell.team-col {
   background: var(--panel-2);

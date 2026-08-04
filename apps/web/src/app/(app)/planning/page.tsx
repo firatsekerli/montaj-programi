@@ -27,8 +27,13 @@ export default async function PlanningPage({
 }) {
   const { week } = await searchParams;
   const weekStart = week && /^\d{4}-\d{2}-\d{2}$/.test(week) ? week : mondayOf(new Date());
-  const weekDays = weekDaysFrom(weekStart, 5);
-  const weekEnd = weekDays[weekDays.length - 1]!;
+  // Show 9 days: the weekend before (Sat/Sun), Mon–Fri, and the weekend after.
+  // Weekends are only for manual moves, so they render as narrow columns until
+  // something is dropped on them (handled in the board).
+  const gridStart = shiftWeek(weekStart, -2); // the Saturday before Monday
+  const weekDays = weekDaysFrom(gridStart, 9);
+  const gridEnd = weekDays[weekDays.length - 1]!;
+  const workEnd = shiftWeek(weekStart, 4); // Friday — used for the week label
   const t = await getTranslations("planning");
   const format = await getFormatter();
   const supabase = await createSupabaseServerClient();
@@ -56,8 +61,8 @@ export default async function PlanningPage({
         .from("assignment")
         .select(sel)
         .eq("plan_id", plan.id)
-        .gte("assign_date", weekStart)
-        .lte("assign_date", weekEnd);
+        .gte("assign_date", gridStart)
+        .lte("assign_date", gridEnd);
     let data = (await run(`${cols}, manual`)).data as Array<Record<string, unknown>> | null;
     if (!data) data = (await run(cols)).data as Array<Record<string, unknown>> | null;
     assignments = (data ?? []).map((a) => {
@@ -90,7 +95,7 @@ export default async function PlanningPage({
         <Link href={`/planning?week=${shiftWeek(weekStart, -7)}`}>← {t("prevWeek")}</Link>
         <strong>
           {format.dateTime(new Date(`${weekStart}T00:00:00`), { day: "numeric", month: "long" })} —{" "}
-          {format.dateTime(new Date(`${weekEnd}T00:00:00`), { day: "numeric", month: "long" })}
+          {format.dateTime(new Date(`${workEnd}T00:00:00`), { day: "numeric", month: "long" })}
         </strong>
         <Link href={`/planning?week=${shiftWeek(weekStart, 7)}`}>{t("nextWeek")} →</Link>
       </div>

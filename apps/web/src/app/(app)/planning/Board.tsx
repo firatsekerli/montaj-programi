@@ -41,6 +41,12 @@ function mondayOfISO(iso: string): string {
   return d.toISOString().slice(0, 10);
 }
 
+/** True for a Saturday/Sunday (UTC). */
+function isWeekend(iso: string): boolean {
+  const g = new Date(`${iso}T00:00:00Z`).getUTCDay();
+  return g === 0 || g === 6;
+}
+
 export function PlanningBoard({
   teams,
   weekDays,
@@ -62,17 +68,24 @@ export function PlanningBoard({
   const router = useRouter();
   const format = useFormatter();
   const sensors = useSensors(useSensor(PointerSensor, { activationConstraint: { distance: 4 } }));
-  const currentWeek = weekDays[0];
+
+  // A weekend column stays narrow until a card is dropped on it (anywhere in the
+  // column). Computed once so header and every row cell agree on the width.
+  const narrowDays = new Set(
+    weekDays.filter((d) => isWeekend(d) && !items.some((a) => a.date === d)),
+  );
+  const template = `160px ${weekDays
+    .map((d) => (narrowDays.has(d) ? "var(--wk-narrow)" : "1fr"))
+    .join(" ")}`;
 
   function apply(id: string, teamId: string, date: string) {
     setItems((prev) => prev.map((a) => (a.id === id ? { ...a, teamId, date, manual: true } : a)));
     startTransition(async () => {
       const res = await moveAssignment(id, teamId, date);
       if (res?.warning) setNotice(res.warning);
-      // If the target lands in another week, jump there so the card is visible.
-      const target = mondayOfISO(date);
-      if (target !== currentWeek) router.push(`/planning?week=${target}`);
-      else router.refresh();
+      // Stay put if the target is already visible; otherwise jump to its week.
+      if (weekDays.includes(date)) router.refresh();
+      else router.push(`/planning?week=${mondayOfISO(date)}`);
     });
   }
 
@@ -112,10 +125,13 @@ export function PlanningBoard({
         </div>
       )}
       <div className="board-scroll">
-        <div className="board" style={{ gridTemplateColumns: `160px repeat(${weekDays.length}, 1fr)` }}>
+        <div className="board" style={{ gridTemplateColumns: template }}>
           <div className="board-cell head team-col" />
           {weekDays.map((d) => (
-            <div key={d} className="board-cell head">
+            <div
+              key={d}
+              className={`board-cell head${isWeekend(d) ? " weekend" : ""}${narrowDays.has(d) ? " narrow" : ""}`}
+            >
               {format.dateTime(new Date(`${d}T00:00:00`), {
                 weekday: "short",
                 day: "numeric",
@@ -130,6 +146,7 @@ export function PlanningBoard({
               team={team}
               teams={teams}
               weekDays={weekDays}
+              narrowDays={narrowDays}
               items={items}
               onUnpin={onUnpin}
               onMove={apply}
@@ -146,6 +163,7 @@ function BoardRow({
   team,
   teams,
   weekDays,
+  narrowDays,
   items,
   onUnpin,
   onMove,
@@ -154,6 +172,7 @@ function BoardRow({
   team: TeamRow;
   teams: TeamRow[];
   weekDays: string[];
+  narrowDays: Set<string>;
   items: BoardAssignment[];
   onUnpin: (id: string) => void;
   onMove: (id: string, teamId: string, date: string) => void;
@@ -172,6 +191,8 @@ function BoardRow({
             usage={usage}
             cards={cell}
             teams={teams}
+            weekend={isWeekend(d)}
+            narrow={narrowDays.has(d)}
             onUnpin={onUnpin}
             onMove={onMove}
             onRecord={onRecord}
@@ -187,6 +208,8 @@ function Cell({
   usage,
   cards,
   teams,
+  weekend,
+  narrow,
   onUnpin,
   onMove,
   onRecord,
@@ -195,6 +218,8 @@ function Cell({
   usage: number;
   cards: BoardAssignment[];
   teams: TeamRow[];
+  weekend: boolean;
+  narrow: boolean;
   onUnpin: (id: string) => void;
   onMove: (id: string, teamId: string, date: string) => void;
   onRecord: (id: string, installed: number) => void;
@@ -202,7 +227,10 @@ function Cell({
   const { setNodeRef, isOver } = useDroppable({ id: cellId });
   const over = usage > 1.0001;
   return (
-    <div ref={setNodeRef} className={`board-cell drop${isOver ? " over" : ""}`}>
+    <div
+      ref={setNodeRef}
+      className={`board-cell drop${isOver ? " over" : ""}${weekend ? " weekend" : ""}${narrow ? " narrow" : ""}`}
+    >
       <div className="usage">
         <span className={`usage-pct${over ? " over-cap" : ""}`}>{Math.round(usage * 100)}%</span>
         <div className="usage-track">
