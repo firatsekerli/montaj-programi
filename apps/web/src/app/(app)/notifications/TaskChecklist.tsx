@@ -24,13 +24,15 @@ const orderOf = (k: string) => {
 
 const today = () => new Date().toISOString().slice(0, 10);
 
+// Filter is either "all" open, a specific kind (open), or "done" (completed).
+const DONE = "__done__";
+
 export function TaskChecklist({ tasks }: { tasks: TaskItem[] }) {
   const t = useTranslations("notifications");
   const format = useFormatter();
   const [pending, startTransition] = useTransition();
   const router = useRouter();
-  const [kind, setKind] = useState<string>("all");
-  const [showDone, setShowDone] = useState(false);
+  const [filter, setFilter] = useState<string>("all");
 
   const kindLabel = (k: string) => (KNOWN.has(k) ? t(`kind.${k}`) : t("kind.other"));
   const isOverdue = (task: TaskItem) =>
@@ -44,45 +46,47 @@ export function TaskChecklist({ tasks }: { tasks: TaskItem[] }) {
     });
   }
 
-  // Pool the filter chips work over (respects the "show completed" toggle).
-  const pool = useMemo(
-    () => tasks.filter((task) => showDone || task.status !== "done"),
-    [tasks, showDone],
+  const open = useMemo(() => tasks.filter((task) => task.status !== "done"), [tasks]);
+  const done = useMemo(() => tasks.filter((task) => task.status === "done"), [tasks]);
+  const openKinds = useMemo(
+    () => [...new Set(open.map((p) => p.kind))].sort((a, b) => orderOf(a) - orderOf(b)),
+    [open],
   );
-  const chipKinds = useMemo(
-    () => [...new Set(pool.map((p) => p.kind))].sort((a, b) => orderOf(a) - orderOf(b)),
-    [pool],
-  );
-  const countFor = (k: string) => pool.filter((p) => p.kind === k).length;
 
-  // If the active kind filter no longer has anything to show, fall back to all.
-  const activeKind = kind !== "all" && !chipKinds.includes(kind) ? "all" : kind;
+  // If the active kind filter emptied out, fall back to all open.
+  const activeFilter =
+    filter !== "all" && filter !== DONE && !openKinds.includes(filter) ? "all" : filter;
 
   const sortTasks = (list: TaskItem[]) =>
     [...list].sort((a, b) => {
-      if ((a.status === "done") !== (b.status === "done")) return a.status === "done" ? 1 : -1;
       const ao = isOverdue(a);
       const bo = isOverdue(b);
       if (ao !== bo) return ao ? -1 : 1;
       return (a.dueDate ?? "9999-99-99").localeCompare(b.dueDate ?? "9999-99-99");
     });
 
-  const visible = pool.filter((p) => activeKind === "all" || p.kind === activeKind);
+  const showingDone = activeFilter === DONE;
+  const base = showingDone ? done : open;
+  const visible = base.filter((p) => activeFilter === "all" || showingDone || p.kind === activeFilter);
 
-  // When showing everything, group by kind with a header; otherwise a flat list.
-  const groups: Array<{ kind: string; items: TaskItem[] }> =
-    activeKind === "all"
-      ? chipKinds.map((k) => ({ kind: k, items: sortTasks(visible.filter((v) => v.kind === k)) }))
-      : [{ kind: activeKind, items: sortTasks(visible) }];
+  // Group by kind under headers when several kinds are shown ("all" or "done").
+  const grouped = activeFilter === "all" || showingDone;
+  const kindsToShow = grouped
+    ? [...new Set(visible.map((v) => v.kind))].sort((a, b) => orderOf(a) - orderOf(b))
+    : [activeFilter];
+  const groups = kindsToShow.map((k) => ({
+    kind: k,
+    items: sortTasks(visible.filter((v) => v.kind === k)),
+  }));
 
   function renderItem(task: TaskItem) {
-    const done = task.status === "done";
+    const isDone = task.status === "done";
     return (
-      <li key={task.id} className={`task-item${done ? " done" : ""}${isOverdue(task) ? " overdue" : ""}`}>
+      <li key={task.id} className={`task-item${isDone ? " done" : ""}${isOverdue(task) ? " overdue" : ""}`}>
         <label>
           <input
             type="checkbox"
-            checked={done}
+            checked={isDone}
             disabled={pending}
             onChange={(e) => toggle(task, e.target.checked)}
           />
@@ -110,41 +114,42 @@ export function TaskChecklist({ tasks }: { tasks: TaskItem[] }) {
 
   return (
     <div>
-      <div className="task-toolbar">
-        <div className="task-filters">
+      <div className="task-filters">
+        <button
+          type="button"
+          className={`task-filter${activeFilter === "all" ? " active" : ""}`}
+          onClick={() => setFilter("all")}
+        >
+          {t("filterAll")} <span className="task-filter-count">{open.length}</span>
+        </button>
+        {openKinds.map((k) => (
           <button
             type="button"
-            className={`task-filter${activeKind === "all" ? " active" : ""}`}
-            onClick={() => setKind("all")}
+            key={k}
+            className={`task-filter${activeFilter === k ? " active" : ""}`}
+            onClick={() => setFilter(k)}
           >
-            {t("filterAll")} <span className="task-filter-count">{pool.length}</span>
+            {kindLabel(k)} <span className="task-filter-count">{open.filter((p) => p.kind === k).length}</span>
           </button>
-          {chipKinds.map((k) => (
-            <button
-              type="button"
-              key={k}
-              className={`task-filter${activeKind === k ? " active" : ""}`}
-              onClick={() => setKind(k)}
-            >
-              {kindLabel(k)} <span className="task-filter-count">{countFor(k)}</span>
-            </button>
-          ))}
-        </div>
-        <label className="task-showdone">
-          <input type="checkbox" checked={showDone} onChange={(e) => setShowDone(e.target.checked)} />
-          {t("showCompleted")}
-        </label>
+        ))}
+        <button
+          type="button"
+          className={`task-filter done-filter${showingDone ? " active" : ""}`}
+          onClick={() => setFilter(DONE)}
+        >
+          {t("completed")} <span className="task-filter-count">{done.length}</span>
+        </button>
       </div>
 
       {visible.length === 0 ? (
-        <p className="empty">{t("empty")}</p>
+        <p className="empty">{showingDone ? t("noCompleted") : t("empty")}</p>
       ) : (
         <div className={`task-groups${pending ? " busy" : ""}`}>
           {groups
             .filter((g) => g.items.length > 0)
             .map((g) => (
               <section key={g.kind} className="task-group">
-                {activeKind === "all" && (
+                {grouped && (
                   <h2 className="task-group-head">
                     <span className={`task-kind kind-${g.kind}`}>{kindLabel(g.kind)}</span>
                     <span className="task-group-count">{g.items.length}</span>

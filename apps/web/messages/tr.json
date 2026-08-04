@@ -286,7 +286,8 @@
     "message": "Mesaj",
     "empty": "Açık görev yok.",
     "filterAll": "Tümü",
-    "showCompleted": "Tamamlananları göster",
+    "completed": "Tamamlanan",
+    "noCompleted": "Henüz tamamlanan görev yok.",
     "kind": {
       "production_check": "Üretim",
       "manlift_transfer": "Manlift transferi",
