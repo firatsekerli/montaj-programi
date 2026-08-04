@@ -574,6 +574,23 @@ label.checkbox input {
 .board-scroll {
   overflow-x: auto;
   padding-bottom: 0.5rem;
+  /* Always show a clear horizontal scrollbar (not a hidden overlay). */
+  scrollbar-width: thin;
+  scrollbar-color: color-mix(in srgb, var(--accent) 65%, var(--border)) var(--panel-2);
+}
+.board-scroll::-webkit-scrollbar {
+  height: 12px;
+}
+.board-scroll::-webkit-scrollbar-track {
+  background: var(--panel-2);
+  border-radius: 6px;
+}
+.board-scroll::-webkit-scrollbar-thumb {
+  background: color-mix(in srgb, var(--accent) 60%, var(--border));
+  border-radius: 6px;
+}
+.board-scroll::-webkit-scrollbar-thumb:hover {
+  background: var(--accent);
 }
 .board {
   display: grid;
@@ -629,6 +646,16 @@ label.checkbox input {
   line-height: 1.2;
   overflow-wrap: break-word;
   padding: 0.5rem 0.35rem;
+  /* Freeze the team column so it stays put while the days scroll under it. */
+  position: sticky;
+  left: 0;
+  z-index: 2;
+  box-shadow: 1px 0 0 var(--border);
+}
+.board-cell.head.team-col {
+  position: sticky;
+  left: 0;
+  z-index: 3;
 }
 .board-cell.drop {
   display: flex;
