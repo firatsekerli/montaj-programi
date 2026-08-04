@@ -572,14 +572,18 @@ label.checkbox input {
   font-size: 0.95rem;
 }
 .board-scroll {
-  overflow-x: auto;
-  padding-bottom: 0.5rem;
-  /* Always show a clear horizontal scrollbar (not a hidden overlay). */
+  /* A self-contained scroll pane: the board scrolls both ways INSIDE here, so the
+     horizontal scrollbar sits at the bottom of the visible pane (never below the
+     fold) and the header/team column stay pinned. */
+  overflow: auto;
+  max-height: calc(100vh - 13rem);
+  /* Always show a clear scrollbar (not a hidden overlay). */
   scrollbar-width: thin;
   scrollbar-color: color-mix(in srgb, var(--accent) 65%, var(--border)) var(--panel-2);
 }
 .board-scroll::-webkit-scrollbar {
   height: 12px;
+  width: 12px;
 }
 .board-scroll::-webkit-scrollbar-track {
   background: var(--panel-2);
@@ -617,6 +621,10 @@ label.checkbox input {
   text-align: center;
   min-height: 0;
   font-weight: 600;
+  /* Keep the day header visible while scrolling teams vertically. */
+  position: sticky;
+  top: 0;
+  z-index: 2;
 }
 /* Weekend columns: dimmed, and a narrow strip until used. */
 .board-cell.weekend {
@@ -654,8 +662,9 @@ label.checkbox input {
 }
 .board-cell.head.team-col {
   position: sticky;
+  top: 0;
   left: 0;
-  z-index: 3;
+  z-index: 4;
 }
 .board-cell.drop {
   display: flex;
