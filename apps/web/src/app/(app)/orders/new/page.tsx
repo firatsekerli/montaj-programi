@@ -7,7 +7,6 @@ export default async function NewOrderPage() {
   const t = await getTranslations("orders");
   const tc = await getTranslations("crud");
   const supabase = await createSupabaseServerClient();
-  const { data: sites } = await supabase.from("site").select("id, name").order("name");
   // required_resource (0011) marks types that need a manlift; tolerant if behind.
   let typeRows = (await supabase.from("work_item_type").select("id, name, required_resource").order("name")).data as
     | Array<{ id: string; name: string; required_resource?: string | null }>
@@ -24,7 +23,7 @@ export default async function NewOrderPage() {
   return (
     <main>
       <h1>{t("newTitle")}</h1>
-      <OrderForm action={createOrder} sites={sites ?? []} types={types} submitLabel={tc("create")} />
+      <OrderForm action={createOrder} types={types} submitLabel={tc("create")} />
     </main>
   );
 }

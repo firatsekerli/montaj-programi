@@ -9,14 +9,11 @@ export default async function EditOrderPage({ params }: { params: Promise<{ id: 
   const t = await getTranslations("orders");
   const tc = await getTranslations("crud");
   const supabase = await createSupabaseServerClient();
-  const [{ data: row }, { data: sites }] = await Promise.all([
-    supabase
-      .from("work_order")
-      .select("*, order_line(work_item_type_id, quantity)")
-      .eq("id", id)
-      .maybeSingle(),
-    supabase.from("site").select("id, name").order("name"),
-  ]);
+  const { data: row } = await supabase
+    .from("work_order")
+    .select("*, order_line(work_item_type_id, quantity)")
+    .eq("id", id)
+    .maybeSingle();
   if (!row) notFound();
 
   // required_resource (0011) marks types that need a manlift; tolerant if behind.
@@ -46,12 +43,12 @@ export default async function EditOrderPage({ params }: { params: Promise<{ id: 
       <p className="subtitle">{row.code}</p>
       <OrderForm
         action={updateOrder.bind(null, id)}
-        sites={sites ?? []}
         types={types}
         submitLabel={tc("save")}
         defaults={{
           code: row.code,
-          siteId: row.site_id,
+          district: (row as { district?: string | null }).district ?? null,
+          accessOverhead: (row as { access_overhead_min?: number }).access_overhead_min ?? 0,
           orderDate: row.order_date,
           deliveryDate: row.delivery_date ?? undefined,
           productionDue: row.production_ready_date ?? undefined,

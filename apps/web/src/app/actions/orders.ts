@@ -17,7 +17,8 @@ type Supabase = Awaited<ReturnType<typeof createSupabaseServerClient>>;
 function parse(formData: FormData) {
   return {
     code: String(formData.get("code") ?? "").trim(),
-    site_id: String(formData.get("site_id") ?? "").trim(),
+    district: String(formData.get("district") ?? "").trim() || null,
+    access_overhead_min: Math.max(0, Math.round(Number(formData.get("access_overhead_min") ?? 0)) || 0),
     order_date: String(formData.get("order_date") ?? "").trim(),
     delivery_date: String(formData.get("delivery_date") ?? "").trim() || null,
     requires_demolition: formData.get("requires_demolition") === "on",

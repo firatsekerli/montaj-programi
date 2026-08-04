@@ -2,6 +2,7 @@
 
 import { useState } from "react";
 import { useTranslations } from "next-intl";
+import { ANKARA_DISTRICTS } from "@/lib/districts";
 
 interface Option {
   id: string;
@@ -11,6 +12,8 @@ interface TypeOption extends Option {
   /** True when this type needs a shared resource (e.g. industrial → manlift). */
   requiresResource?: boolean;
 }
+
+const DISTRICTS = [...ANKARA_DISTRICTS].sort((a, b) => a.name.localeCompare(b.name, "tr"));
 interface Line {
   work_item_type_id: string;
   quantity: number;
@@ -20,17 +23,16 @@ const STATUSES = ["backlog", "planned", "in_progress", "completed", "blocked"] a
 
 export function OrderForm({
   action,
-  sites,
   types,
   defaults = {},
   submitLabel,
 }: {
   action: (formData: FormData) => void | Promise<void>;
-  sites: Option[];
   types: TypeOption[];
   defaults?: {
     code?: string;
-    siteId?: string;
+    district?: string | null;
+    accessOverhead?: number;
     orderDate?: string;
     deliveryDate?: string;
     productionDue?: string;
@@ -76,19 +78,31 @@ export function OrderForm({
         <input name="code" defaultValue={defaults.code} required />
       </label>
 
-      <label>
-        {t("site")}
-        <select name="site_id" defaultValue={defaults.siteId ?? ""} required>
-          <option value="" disabled>
-            {t("site")}
-          </option>
-          {sites.map((s) => (
-            <option key={s.id} value={s.id}>
-              {s.name ?? s.id}
+      <div className="row-2">
+        <label>
+          {t("district")}
+          <select name="district" defaultValue={defaults.district ?? ""} required>
+            <option value="" disabled>
+              {t("selectDistrict")}
             </option>
-          ))}
-        </select>
-      </label>
+            {DISTRICTS.map((d) => (
+              <option key={d.name} value={d.name}>
+                {d.name}
+              </option>
+            ))}
+          </select>
+        </label>
+        <label>
+          {t("accessOverhead")}
+          <input
+            name="access_overhead_min"
+            type="number"
+            min="0"
+            defaultValue={defaults.accessOverhead ?? 0}
+          />
+        </label>
+      </div>
+      <span className="help">{t("accessOverheadHelp")}</span>
 
       <div className="row-2">
         <label>

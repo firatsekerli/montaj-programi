@@ -39,7 +39,6 @@ export interface PlanningContext {
   shift: ShiftContext;
   teams: ScheduleTeam[];
   calendar: Calendar;
-  siteCoords: Record<string, Coord>;
   avgSpeedKmh: number;
   /** Shared resource pools by kind → available asset ids (e.g. manlifts). */
   resources: Record<string, string[]>;
@@ -50,7 +49,7 @@ export interface PlanningContext {
 }
 
 export async function buildPlanningContext(supabase: Supabase): Promise<PlanningContext> {
-  const [{ data: types }, { data: rulesRows }, { data: setting }, { data: teamRows }, { data: leave }, { data: siteRows }] =
+  const [{ data: types }, { data: rulesRows }, { data: setting }, { data: teamRows }, { data: leave }] =
     await Promise.all([
       supabase.from("work_item_type").select("*"),
       supabase.from("capacity_rule").select("*").eq("enabled", true),
@@ -67,7 +66,6 @@ export async function buildPlanningContext(supabase: Supabase): Promise<Planning
           "id, name, is_subcontractor, preference_weight, base_location_id, team_member(person_id), team_capability(work_item_type_id)",
         ),
       supabase.from("availability").select("person_id, date_from, date_to"),
-      supabase.from("site").select("id, lat, lon"),
     ]);
 
   // Optional columns from later migrations — ignore the error if absent.
@@ -134,11 +132,6 @@ export async function buildPlanningContext(supabase: Supabase): Promise<Planning
     if (!teamId || c.max_units == null) continue;
     const byType = (carryCapByTeam[teamId] ??= {});
     byType[c.work_item_type_id] = (byType[c.work_item_type_id] ?? 0) + c.max_units;
-  }
-
-  const siteCoords: Record<string, Coord> = {};
-  for (const s of (siteRows ?? []) as Array<{ id: string; lat: number | null; lon: number | null }>) {
-    if (s.lat != null && s.lon != null) siteCoords[s.id] = { lat: s.lat, lon: s.lon };
   }
 
   const typeMap = new Map<string, WorkItemType>();
@@ -232,7 +225,7 @@ export async function buildPlanningContext(supabase: Supabase): Promise<Planning
     }));
 
   return {
-    typeMap, rules, shift, teams, calendar, siteCoords,
+    typeMap, rules, shift, teams, calendar,
     avgSpeedKmh: AVG_KMH, resources, dayFillTolerance, shippingTeams,
   };
 }

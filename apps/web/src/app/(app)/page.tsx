@@ -46,7 +46,6 @@ export default async function DashboardPage({
     Promise.all([
       supabase.from("team").select("id", { count: "exact", head: true }),
       supabase.from("asset").select("id", { count: "exact", head: true }),
-      supabase.from("site").select("id", { count: "exact", head: true }),
       supabase.from("work_order").select("id", { count: "exact", head: true }),
     ]),
     supabase.from("plan").select("id").limit(1).maybeSingle(),
@@ -87,14 +86,13 @@ export default async function DashboardPage({
   };
   const shiftOvertime: ShiftContext = { ...shiftNormal, overtime: true };
 
-  const [teams, assets, sites, orders] = counts.map((c) => c.count ?? 0);
+  const [teams, assets, orders] = counts.map((c) => c.count ?? 0);
 
   const stats = [
     { label: t("statOrders"), value: orders },
     { label: t("statTypes"), value: types?.length ?? 0 },
     { label: t("statTeams"), value: teams },
     { label: t("statAssets"), value: assets },
-    { label: t("statSites"), value: sites },
   ];
 
   return (

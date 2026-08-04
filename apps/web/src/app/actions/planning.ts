@@ -13,6 +13,7 @@ import {
   type ScheduleOrder,
 } from "@montaj/rules";
 import { getCurrentContext } from "@/lib/auth";
+import { districtCenter } from "@/lib/districts";
 import { createSupabaseServerClient } from "@/lib/supabase/server";
 import {
   buildPlanningContext,
@@ -124,11 +125,12 @@ export async function generatePlan() {
     production_confirmed: boolean;
     requires_demolition: boolean;
     requires_resource?: boolean;
-    site: unknown;
+    district: string | null;
+    access_overhead_min: number | null;
     order_line: Array<{ id: string; work_item_type_id: string; quantity: number; attributes: Record<string, unknown> | null }> | null;
   };
   const orderCols =
-    "id, code, delivery_date, production_ready_date, production_confirmed, requires_demolition, site:site_id(id, access_overhead_min), order_line(id, work_item_type_id, quantity, attributes)";
+    "id, code, delivery_date, production_ready_date, production_confirmed, requires_demolition, district, access_overhead_min, order_line(id, work_item_type_id, quantity, attributes)";
   let orders = (
     await supabase.from("work_order").select(`${orderCols}, requires_resource`).in("status", ["backlog", "planned"])
   ).data as OrderRow[] | null;
@@ -138,10 +140,16 @@ export async function generatePlan() {
       | null;
   }
 
+  // Each order is its own location: the scheduler "site" is the order id, and its
+  // coordinates come from the order's Ankara district center.
+  const siteCoords: Record<string, Coord> = {};
+  for (const order of orders ?? []) {
+    const c = order.district ? districtCenter(order.district) : null;
+    if (c) siteCoords[order.id] = { lat: c.lat, lon: c.lon };
+  }
+
   const scheduleOrders: ScheduleOrder[] = [];
   for (const order of orders ?? []) {
-    const site = one<{ id: string; access_overhead_min: number }>(order.site);
-    if (!site) continue;
     // Manlift asked per order: when the order doesn't need it, strip the type's
     // required resource for this order's lines so nothing is reserved.
     const needsResource = order.requires_resource !== false;
@@ -172,8 +180,8 @@ export async function generatePlan() {
     scheduleOrders.push({
       orderId: order.id,
       orderCode: order.code,
-      siteId: site.id,
-      accessOverheadMinutes: site.access_overhead_min ?? 0,
+      siteId: order.id,
+      accessOverheadMinutes: order.access_overhead_min ?? 0,
       lines,
       earliestDate: earliestDate < firstDay ? firstDay : earliestDate,
       deliveryDate: order.delivery_date,
@@ -187,7 +195,7 @@ export async function generatePlan() {
     teams: ctx.teams,
     orders: scheduleOrders,
     committed,
-    siteCoords: ctx.siteCoords,
+    siteCoords,
     avgSpeedKmh: ctx.avgSpeedKmh,
     resources: ctx.resources,
     dayFillTolerance: ctx.dayFillTolerance,
@@ -260,7 +268,7 @@ async function recomputeTeamDay(
   const { data: rows } = await supabase
     .from("assignment")
     .select(
-      "id, units, order_line:order_line_id(work_item_type_id, attributes), work_order:order_id(requires_demolition, site:site_id(id, access_overhead_min))",
+      "id, units, order_id, order_line:order_line_id(work_item_type_id, attributes), work_order:order_id(requires_demolition, district, access_overhead_min)",
     )
     .eq("plan_id", planId)
     .eq("team_id", teamId)
@@ -270,8 +278,9 @@ async function recomputeTeamDay(
   const hoursPerDay = shiftHours(ctx.shift);
   const entries = rows.map((r) => {
     const line = one<{ work_item_type_id: string; attributes: Record<string, unknown> }>(r.order_line);
-    const order = one<{ requires_demolition: boolean; site: unknown }>(r.work_order);
-    const site = one<{ id: string; access_overhead_min: number }>(order?.site);
+    const order = one<{ requires_demolition: boolean; district: string | null; access_overhead_min: number | null }>(
+      r.work_order,
+    );
     const type = line ? ctx.typeMap.get(line.work_item_type_id) : undefined;
     let unit = 0;
     if (type) {
@@ -283,12 +292,14 @@ async function recomputeTeamDay(
       const override = team.dailyCapOverride?.[type.id];
       unit = override && override > 0 ? 1 / override : unitCostDays(type, ctx.shift, ctx.rules, facts);
     }
+    // The order is its own site; its coords come from the district center.
+    const c = order?.district ? districtCenter(order.district) : null;
     return {
       id: r.id as string,
       work: (r.units as number) * unit,
-      siteId: site?.id,
-      access: site?.access_overhead_min ?? 0,
-      coord: site ? ctx.siteCoords[site.id] : undefined,
+      siteId: r.order_id as string,
+      access: order?.access_overhead_min ?? 0,
+      coord: c ? { lat: c.lat, lon: c.lon } : undefined,
     };
   });
   // Stable order so the "first assignment of a site" (which carries the site's
@@ -430,8 +441,14 @@ async function syncManliftTransferTasks(
 
   const { data: assetRows } = await supabase.from("asset").select("id, name");
   const assetName = new Map<string, string>((assetRows ?? []).map((r) => [r.id as string, r.name as string]));
-  const { data: siteRows } = await supabase.from("site").select("id, name");
-  const siteName = new Map<string, string>((siteRows ?? []).map((r) => [r.id as string, r.name as string]));
+  // The order is the location now — label it by code + district.
+  const { data: orderRows } = await supabase.from("work_order").select("id, code, district");
+  const orderLabel = new Map<string, string>(
+    (orderRows ?? []).map((r) => [
+      r.id as string,
+      `${r.code}${r.district ? ` (${r.district})` : ""}`,
+    ]),
+  );
 
   const desired: DesiredTask[] = [];
   for (const [assetId, listRaw] of byAsset) {
@@ -445,8 +462,8 @@ async function syncManliftTransferTasks(
       prevSite = entry.siteId;
       const transferDay = subtractWorkingDays(entry.date, 1, ctx.calendar.workingWeekdays);
       const equip = assetName.get(assetId) ?? poolKind.get(assetId) ?? "Manlift";
-      const site = siteName.get(entry.siteId) ?? "şantiye";
-      const message = `${equip}, ${fmtTR(entry.date)} montajı için ${site} şantiyesine ${fmtTR(transferDay)} tarihinde transfer edilmeli.`;
+      const site = orderLabel.get(entry.orderId) ?? "montaj";
+      const message = `${equip}, ${site} montajı için ${fmtTR(transferDay)} tarihinde ${fmtTR(entry.date)} işine transfer edilmeli.`;
       desired.push({
         dedupKey: `${assetId}:${entry.date}:${entry.siteId}`,
         relatedOrderId: entry.orderId,
@@ -481,25 +498,23 @@ async function syncShipmentTasks(
   const { data: rows } = await supabase
     .from("assignment")
     .select(
-      "assign_date, units, order_id, order_line:order_line_id(work_item_type_id), work_order:order_id(code, site_id)",
+      "assign_date, units, order_id, order_line:order_line_id(work_item_type_id), work_order:order_id(code, district)",
     )
     .eq("plan_id", planId)
     .neq("status", "completed");
 
   const { data: typeRows } = await supabase.from("work_item_type").select("id, name");
   const typeName = new Map<string, string>((typeRows ?? []).map((r) => [r.id as string, r.name as string]));
-  const { data: siteRows } = await supabase.from("site").select("id, name");
-  const siteName = new Map<string, string>((siteRows ?? []).map((r) => [r.id as string, r.name as string]));
 
-  // Group by order: first install day, site, and door counts per type.
-  type Grp = { first: string; siteId?: string; code: string; doors: Map<string, number> };
+  // Group by order: first install day, district, and door counts per type.
+  type Grp = { first: string; district: string | null; code: string; doors: Map<string, number> };
   const byOrder = new Map<string, Grp>();
   for (const r of rows ?? []) {
     const line = one<{ work_item_type_id: string }>(r.order_line);
-    const order = one<{ code: string; site_id: string }>(r.work_order);
+    const order = one<{ code: string; district: string | null }>(r.work_order);
     const orderId = r.order_id as string;
     const date = r.assign_date as string;
-    const g = byOrder.get(orderId) ?? { first: date, siteId: order?.site_id, code: order?.code ?? "", doors: new Map() };
+    const g = byOrder.get(orderId) ?? { first: date, district: order?.district ?? null, code: order?.code ?? "", doors: new Map() };
     if (date < g.first) g.first = date;
     if (line) g.doors.set(line.work_item_type_id, (g.doors.get(line.work_item_type_id) ?? 0) + (r.units as number));
     byOrder.set(orderId, g);
@@ -507,9 +522,9 @@ async function syncShipmentTasks(
 
   const desired: DesiredTask[] = [];
   for (const [orderId, g] of byOrder) {
-    if (!g.siteId) continue;
-    const siteCoord = ctx.siteCoords[g.siteId];
-    // Nearest shipping crew to the site (falls back to the first when no coords).
+    const dc = g.district ? districtCenter(g.district) : null;
+    const siteCoord = dc ? { lat: dc.lat, lon: dc.lon } : undefined;
+    // Nearest shipping crew to the order's district (falls back to the first).
     const crew =
       siteCoord && ctx.shippingTeams.some((s) => s.baseCoord)
         ? [...ctx.shippingTeams]
@@ -522,13 +537,13 @@ async function syncShipmentTasks(
     const doorsStr = [...g.doors.entries()]
       .map(([tid, n]) => `${n}× ${typeName.get(tid) ?? ""}`.trim())
       .join(", ");
-    const site = siteName.get(g.siteId) ?? "şantiye";
-    const message = `${person}, ${vehicle} ile ${site} şantiyesine ${doorsStr} kapılarını ${fmtTR(g.first)} montajı için ${fmtTR(shipDay)} tarihinde sevk etmeli.`;
+    const dest = g.district ? `${g.code} (${g.district})` : g.code;
+    const message = `${person}, ${vehicle} ile ${dest} için ${doorsStr} kapılarını ${fmtTR(g.first)} montajı için ${fmtTR(shipDay)} tarihinde sevk etmeli.`;
     desired.push({
-      dedupKey: `${orderId}:${g.first}:${g.siteId}`,
+      dedupKey: `${orderId}:${g.first}`,
       relatedOrderId: orderId,
       dueDate: shipDay,
-      payload: { message, kind: "shipment", crewId: crew.id, siteId: g.siteId, installDate: g.first },
+      payload: { message, kind: "shipment", crewId: crew.id, district: g.district, installDate: g.first },
     });
   }
 
