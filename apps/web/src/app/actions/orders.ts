@@ -115,7 +115,7 @@ async function computeProductionDue(
 ): Promise<string | null> {
   if (!deliveryDate || lines.length === 0) return null;
 
-  const [{ data: types }, { data: setting }] = await Promise.all([
+  const [{ data: types }, { data: setting }, { data: caps }] = await Promise.all([
     supabase
       .from("work_item_type")
       .select("id, code, capacity_model, base_capacity, effort")
@@ -127,7 +127,15 @@ async function computeProductionDue(
       .from("tenant_setting")
       .select("normal_shift_hours, overtime_shift_hours, working_days, production_buffer_days")
       .maybeSingle(),
+    // How many crews can install each type — parallel crews shorten install time,
+    // so production is due later (closer to delivery), not needlessly early.
+    supabase.from("team_capability").select("work_item_type_id"),
   ]);
+
+  const crewCountByType = new Map<string, number>();
+  for (const c of (caps ?? []) as Array<{ work_item_type_id: string }>) {
+    crewCountByType.set(c.work_item_type_id, (crewCountByType.get(c.work_item_type_id) ?? 0) + 1);
+  }
 
   const typeMap = new Map<string, WorkItemType>();
   for (const row of types ?? []) {
@@ -153,7 +161,7 @@ async function computeProductionDue(
   const workingWeekdays = (setting?.working_days as number[] | null) ?? [1, 2, 3, 4, 5];
   const buffer = Number(setting?.production_buffer_days ?? 2);
 
-  const installDays = estimateInstallDays(engineLines, shift);
+  const installDays = estimateInstallDays(engineLines, shift, crewCountByType);
   return productionDueDate(deliveryDate, installDays, buffer, workingWeekdays);
 }
 

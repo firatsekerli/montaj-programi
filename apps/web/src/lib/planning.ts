@@ -263,17 +263,25 @@ export function subtractWorkingDays(dateISO: string, n: number, workingWeekdays:
   return iso(d);
 }
 
-/** Rough install duration (working days) for a set of lines, ignoring travel. */
+/**
+ * Rough install duration (working days) for a set of lines, ignoring travel.
+ * `crewCountByType` gives how many crews can install each type in parallel — a
+ * type worked by two crews finishes in half the days (100 doors at 8/day is 12
+ * days for one crew, ~6 for two), so production can be due later (closer to
+ * delivery). Defaults to one crew per type when omitted.
+ */
 export function estimateInstallDays(
   lines: Array<{ type: WorkItemType; quantity: number }>,
   shift: ShiftContext,
+  crewCountByType?: Map<string, number>,
 ): number {
   let dayCost = 0;
   for (const l of lines) {
+    const crews = Math.max(1, crewCountByType?.get(l.type.id) ?? 1);
     if (l.type.capacityModel === "count" && l.type.baseCapacity) {
-      dayCost += l.quantity / Math.max(1, l.type.baseCapacity.normal);
+      dayCost += l.quantity / (Math.max(1, l.type.baseCapacity.normal) * crews);
     } else if (l.type.effort) {
-      dayCost += (l.quantity * l.type.effort.hoursPerUnit) / shift.normalShiftHours;
+      dayCost += (l.quantity * l.type.effort.hoursPerUnit) / (shift.normalShiftHours * crews);
     }
   }
   return Math.max(1, Math.ceil(dayCost));
