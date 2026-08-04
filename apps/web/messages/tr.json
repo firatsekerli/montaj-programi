@@ -285,6 +285,8 @@
     "dueShort": "Son tarih",
     "message": "Mesaj",
     "empty": "Açık görev yok.",
+    "filterAll": "Tümü",
+    "showCompleted": "Tamamlananları göster",
     "kind": {
       "production_check": "Üretim",
       "manlift_transfer": "Manlift transferi",

@@ -1087,3 +1087,77 @@ button.card-action.undo:hover {
   color: var(--danger);
   font-weight: 600;
 }
+
+/* Toolbar: kind filter chips + show-completed toggle. */
+.task-toolbar {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.75rem;
+  align-items: center;
+  justify-content: space-between;
+  padding: 0 0.25rem 0.85rem;
+  border-bottom: 1px solid var(--border);
+  margin-bottom: 0.5rem;
+}
+.task-filters {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.4rem;
+}
+button.task-filter {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.35rem;
+  padding: 0.25rem 0.7rem;
+  border-radius: 999px;
+  border: 1px solid var(--border);
+  background: var(--panel-2);
+  color: var(--muted);
+  font-size: 0.82rem;
+  cursor: pointer;
+}
+button.task-filter:hover {
+  color: var(--text);
+}
+button.task-filter.active {
+  color: var(--text);
+  border-color: var(--accent);
+  background: color-mix(in srgb, var(--accent) 16%, var(--panel-2));
+}
+.task-filter-count {
+  font-size: 0.72rem;
+  font-weight: 600;
+  padding: 0 0.35rem;
+  border-radius: 999px;
+  background: color-mix(in srgb, var(--text) 12%, transparent);
+}
+.task-showdone {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.4rem;
+  font-size: 0.82rem;
+  color: var(--muted);
+  cursor: pointer;
+  white-space: nowrap;
+}
+.task-showdone input {
+  width: 1rem;
+  height: 1rem;
+  accent-color: var(--accent);
+  cursor: pointer;
+}
+.task-group + .task-group {
+  margin-top: 1rem;
+}
+.task-group-head {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  margin: 0 0 0.25rem;
+  font-size: 0.95rem;
+}
+.task-group-count {
+  font-size: 0.72rem;
+  font-weight: 600;
+  color: var(--muted);
+}
