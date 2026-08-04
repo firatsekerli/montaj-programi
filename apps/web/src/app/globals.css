@@ -836,13 +836,15 @@ button.card-action:hover {
   color: var(--text);
   border-color: var(--accent);
 }
+/* The record-installed action is an INPUT trigger, not a status — use the
+   accent (blue), never green. Green is reserved for a completed card. */
 button.card-action.record {
-  color: #7bd88f;
-  border-color: color-mix(in srgb, #2e7d32 60%, var(--border));
+  color: var(--accent);
+  border-color: color-mix(in srgb, var(--accent) 55%, var(--border));
 }
 button.card-action.record:hover {
-  border-color: #2e7d32;
-  background: color-mix(in srgb, #2e7d32 18%, var(--panel));
+  border-color: var(--accent);
+  background: color-mix(in srgb, var(--accent) 15%, var(--panel));
 }
 .card-move-panel {
   display: flex;
