@@ -582,9 +582,11 @@ label.checkbox input {
   border: 1px solid var(--border);
   border-radius: var(--radius);
   overflow: hidden;
-  min-width: 820px;
+  min-width: 780px;
   /* Width of an empty weekend column (widens to 1fr once a card lands on it). */
   --wk-narrow: 40px;
+  /* Team-name column — narrow; long names wrap to two lines. */
+  --team-col: 96px;
 }
 .board-cell {
   background: var(--panel);
@@ -623,6 +625,10 @@ label.checkbox input {
   font-weight: 600;
   display: flex;
   align-items: center;
+  font-size: 0.82rem;
+  line-height: 1.2;
+  overflow-wrap: anywhere;
+  hyphens: auto;
 }
 .board-cell.drop {
   display: flex;

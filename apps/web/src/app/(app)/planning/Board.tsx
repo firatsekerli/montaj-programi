@@ -74,7 +74,7 @@ export function PlanningBoard({
   const narrowDays = new Set(
     weekDays.filter((d) => isWeekend(d) && !items.some((a) => a.date === d)),
   );
-  const template = `160px ${weekDays
+  const template = `var(--team-col) ${weekDays
     .map((d) => (narrowDays.has(d) ? "var(--wk-narrow)" : "1fr"))
     .join(" ")}`;
 
