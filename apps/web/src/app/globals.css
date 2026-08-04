@@ -846,6 +846,15 @@ button.card-action.record:hover {
   border-color: var(--accent);
   background: color-mix(in srgb, var(--accent) 15%, var(--panel));
 }
+/* Undo on a completed (green) card — legible against the green background. */
+button.card-action.undo {
+  color: var(--text);
+  background: color-mix(in srgb, var(--bg) 35%, transparent);
+  border-color: color-mix(in srgb, var(--text) 30%, transparent);
+}
+button.card-action.undo:hover {
+  border-color: var(--text);
+}
 .card-move-panel {
   display: flex;
   flex-direction: column;

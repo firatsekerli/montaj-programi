@@ -12,7 +12,7 @@ import {
   useSensors,
   type DragEndEvent,
 } from "@dnd-kit/core";
-import { moveAssignment, recordInstalled, unpinAssignment } from "@/app/actions/planning";
+import { moveAssignment, recordInstalled, undoInstalled, unpinAssignment } from "@/app/actions/planning";
 
 export interface BoardAssignment {
   id: string;
@@ -114,6 +114,13 @@ export function PlanningBoard({
     });
   }
 
+  function onUndo(id: string) {
+    startTransition(async () => {
+      await undoInstalled(id);
+      router.refresh();
+    });
+  }
+
   return (
     <DndContext sensors={sensors} onDragEnd={onDragEnd}>
       {notice && (
@@ -151,6 +158,7 @@ export function PlanningBoard({
               onUnpin={onUnpin}
               onMove={apply}
               onRecord={onRecord}
+              onUndo={onUndo}
             />
           ))}
         </div>
@@ -168,6 +176,7 @@ function BoardRow({
   onUnpin,
   onMove,
   onRecord,
+  onUndo,
 }: {
   team: TeamRow;
   teams: TeamRow[];
@@ -177,6 +186,7 @@ function BoardRow({
   onUnpin: (id: string) => void;
   onMove: (id: string, teamId: string, date: string) => void;
   onRecord: (id: string, installed: number) => void;
+  onUndo: (id: string) => void;
 }) {
   return (
     <>
@@ -196,6 +206,7 @@ function BoardRow({
             onUnpin={onUnpin}
             onMove={onMove}
             onRecord={onRecord}
+            onUndo={onUndo}
           />
         );
       })}
@@ -213,6 +224,7 @@ function Cell({
   onUnpin,
   onMove,
   onRecord,
+  onUndo,
 }: {
   cellId: string;
   usage: number;
@@ -223,6 +235,7 @@ function Cell({
   onUnpin: (id: string) => void;
   onMove: (id: string, teamId: string, date: string) => void;
   onRecord: (id: string, installed: number) => void;
+  onUndo: (id: string) => void;
 }) {
   const { setNodeRef, isOver } = useDroppable({ id: cellId });
   const over = usage > 1.0001;
@@ -241,7 +254,7 @@ function Cell({
         </div>
       </div>
       {cards.map((c) => (
-        <Card key={c.id} a={c} teams={teams} onUnpin={onUnpin} onMove={onMove} onRecord={onRecord} />
+        <Card key={c.id} a={c} teams={teams} onUnpin={onUnpin} onMove={onMove} onRecord={onRecord} onUndo={onUndo} />
       ))}
     </div>
   );
@@ -253,12 +266,14 @@ function Card({
   onUnpin,
   onMove,
   onRecord,
+  onUndo,
 }: {
   a: BoardAssignment;
   teams: TeamRow[];
   onUnpin: (id: string) => void;
   onMove: (id: string, teamId: string, date: string) => void;
   onRecord: (id: string, installed: number) => void;
+  onUndo: (id: string) => void;
 }) {
   const t = useTranslations("planning");
   const { attributes, listeners, setNodeRef, transform, isDragging } = useDraggable({ id: a.id });
@@ -334,6 +349,22 @@ function Card({
               }}
             >
               {t("recordChip")}
+            </button>
+          </span>
+        )}
+        {doneCard && (
+          <span className="card-actions">
+            <button
+              type="button"
+              className="card-action undo"
+              title={t("undoTitle")}
+              onPointerDown={stop}
+              onClick={(e) => {
+                stop(e);
+                onUndo(a.id);
+              }}
+            >
+              {t("undo")}
             </button>
           </span>
         )}

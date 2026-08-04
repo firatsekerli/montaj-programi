@@ -261,6 +261,8 @@
     "recordChip": "Takılanı gir",
     "installed": "Takılan adet",
     "installedDone": "{n} takıldı",
+    "undo": "Geri al",
+    "undoTitle": "Takılan kaydını geri al — sipariş yeniden planlanır",
     "save": "Kaydet",
     "unplacedTitle": "Planlanamayan siparişler",
     "unplacedNote": "Aşağıdaki kalemler bu haftaya yerleştirilemedi:",

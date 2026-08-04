@@ -679,6 +679,24 @@ export async function recordInstalled(assignmentId: string, installed: number) {
 }
 
 /**
+ * Undo a recorded installation. Returns the completed card to auto-planning
+ * (planned + non-manual) so generatePlan discards it and re-plans the order's
+ * full remaining from scratch — the mistaken completion and any split-off
+ * remainder cards are cleaned up in one step.
+ */
+export async function undoInstalled(assignmentId: string) {
+  const supabase = await createSupabaseServerClient();
+  // Tolerant of a lagging migration: retry without `manual` if absent.
+  let { error } = await supabase
+    .from("assignment")
+    .update({ status: "planned", manual: false })
+    .eq("id", assignmentId);
+  if (error) ({ error } = await supabase.from("assignment").update({ status: "planned" }).eq("id", assignmentId));
+  if (error) throw new Error(error.message);
+  await generatePlan();
+}
+
+/**
  * Release a manually-pinned card back to auto-planning: clear its `manual` flag
  * so the next "Yeniden Oluştur" recomputes it. Tolerant of a lagging migration.
  */
