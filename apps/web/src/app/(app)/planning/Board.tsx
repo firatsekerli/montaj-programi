@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState, useTransition } from "react";
+import { useEffect, useRef, useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
 import { useFormatter, useTranslations } from "next-intl";
 import {
@@ -123,6 +123,25 @@ export function PlanningBoard({
     });
   }
 
+  // A slim scrollbar strip above the board, kept in sync with it — so the
+  // horizontal scroll is always visible without scrolling to the board's bottom.
+  const topRef = useRef<HTMLDivElement>(null);
+  const boardRef = useRef<HTMLDivElement>(null);
+  const innerRef = useRef<HTMLDivElement>(null);
+  const [boardWidth, setBoardWidth] = useState(0);
+  useEffect(() => {
+    const inner = innerRef.current;
+    if (!inner) return;
+    const update = () => setBoardWidth(inner.offsetWidth);
+    update();
+    const ro = new ResizeObserver(update);
+    ro.observe(inner);
+    return () => ro.disconnect();
+  }, [weekDays, items]);
+  const syncFrom = (src: HTMLDivElement | null, dst: HTMLDivElement | null) => {
+    if (src && dst && dst.scrollLeft !== src.scrollLeft) dst.scrollLeft = src.scrollLeft;
+  };
+
   return (
     <DndContext sensors={sensors} onDragEnd={onDragEnd}>
       {notice && (
@@ -133,8 +152,19 @@ export function PlanningBoard({
           </button>
         </div>
       )}
-      <div className="board-scroll">
-        <div className="board" style={{ gridTemplateColumns: template }}>
+      <div
+        className="board-topscroll"
+        ref={topRef}
+        onScroll={() => syncFrom(topRef.current, boardRef.current)}
+      >
+        <div style={{ width: boardWidth }} />
+      </div>
+      <div
+        className="board-scroll"
+        ref={boardRef}
+        onScroll={() => syncFrom(boardRef.current, topRef.current)}
+      >
+        <div className="board" ref={innerRef} style={{ gridTemplateColumns: template }}>
           <div className="board-cell head team-col" />
           {weekDays.map((d) => (
             <div

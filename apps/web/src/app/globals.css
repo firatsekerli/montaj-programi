@@ -571,28 +571,39 @@ label.checkbox input {
   margin: 0.5rem 0 1rem;
   font-size: 0.95rem;
 }
-.board-scroll {
-  /* A self-contained scroll pane: the board scrolls both ways INSIDE here, so the
-     horizontal scrollbar sits at the bottom of the visible pane (never below the
-     fold) and the header/team column stay pinned. */
-  overflow: auto;
-  max-height: calc(100vh - 13rem);
-  /* Always show a clear scrollbar (not a hidden overlay). */
+/* A synced scrollbar strip shown ABOVE the board so it's always visible (a wide
+   board's own bottom bar sits below the fold). Scrolling it scrolls the board. */
+.board-topscroll {
+  overflow-x: auto;
+  overflow-y: hidden;
   scrollbar-width: thin;
   scrollbar-color: color-mix(in srgb, var(--accent) 65%, var(--border)) var(--panel-2);
 }
+.board-topscroll > div {
+  height: 1px;
+}
+.board-scroll {
+  overflow-x: auto;
+  overflow-y: visible;
+  padding-bottom: 0.25rem;
+  scrollbar-width: thin;
+  scrollbar-color: color-mix(in srgb, var(--accent) 65%, var(--border)) var(--panel-2);
+}
+.board-topscroll::-webkit-scrollbar,
 .board-scroll::-webkit-scrollbar {
   height: 12px;
-  width: 12px;
 }
+.board-topscroll::-webkit-scrollbar-track,
 .board-scroll::-webkit-scrollbar-track {
   background: var(--panel-2);
   border-radius: 6px;
 }
+.board-topscroll::-webkit-scrollbar-thumb,
 .board-scroll::-webkit-scrollbar-thumb {
   background: color-mix(in srgb, var(--accent) 60%, var(--border));
   border-radius: 6px;
 }
+.board-topscroll::-webkit-scrollbar-thumb:hover,
 .board-scroll::-webkit-scrollbar-thumb:hover {
   background: var(--accent);
 }
@@ -621,10 +632,6 @@ label.checkbox input {
   text-align: center;
   min-height: 0;
   font-weight: 600;
-  /* Keep the day header visible while scrolling teams vertically. */
-  position: sticky;
-  top: 0;
-  z-index: 2;
 }
 /* Weekend columns: dimmed, and a narrow strip until used. */
 .board-cell.weekend {
@@ -662,9 +669,8 @@ label.checkbox input {
 }
 .board-cell.head.team-col {
   position: sticky;
-  top: 0;
   left: 0;
-  z-index: 4;
+  z-index: 3;
 }
 .board-cell.drop {
   display: flex;
