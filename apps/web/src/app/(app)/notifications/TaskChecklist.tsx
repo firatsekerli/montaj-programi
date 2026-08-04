@@ -19,7 +19,7 @@ export function TaskChecklist({ tasks }: { tasks: TaskItem[] }) {
   const format = useFormatter();
   const [pending, startTransition] = useTransition();
   const router = useRouter();
-  const KNOWN = new Set(["production_check", "manlift_transfer"]);
+  const KNOWN = new Set(["production_check", "manlift_transfer", "deadline_risk"]);
 
   function toggle(task: TaskItem, done: boolean) {
     startTransition(async () => {

@@ -113,8 +113,8 @@ async function computeProductionDue(
   deliveryDate: string | null,
   lines: LineInput[],
   orderDate: string | null,
-): Promise<string | null> {
-  if (!deliveryDate || lines.length === 0) return null;
+): Promise<{ due: string | null; tight: boolean }> {
+  if (!deliveryDate || lines.length === 0) return { due: null, tight: false };
 
   const [{ data: types }, { data: setting }, { data: caps }] = await Promise.all([
     supabase
@@ -152,7 +152,7 @@ async function computeProductionDue(
   const engineLines = lines
     .map((l) => ({ type: typeMap.get(l.work_item_type_id), quantity: l.quantity }))
     .filter((l): l is { type: WorkItemType; quantity: number } => Boolean(l.type));
-  if (engineLines.length === 0) return null;
+  if (engineLines.length === 0) return { due: null, tight: false };
 
   const shift = {
     overtime: false,
@@ -165,8 +165,10 @@ async function computeProductionDue(
   const installDays = estimateInstallDays(engineLines, shift, crewCountByType);
   const due = productionDueDate(deliveryDate, installDays, buffer, workingWeekdays);
   // Production can never be due BEFORE the order was placed — if the deadline is
-  // too tight the backward math lands before the order date, so floor it there.
-  return orderDate && due < orderDate ? orderDate : due;
+  // too tight the backward math lands before the order date, so floor it there
+  // and flag the order as at-risk (üretim + montaj bu süreye sığmıyor).
+  const tight = Boolean(orderDate && due < orderDate);
+  return { due: tight ? orderDate : due, tight };
 }
 
 /** Notify operations of the production-due date (create/refresh an open task). */
@@ -195,13 +197,48 @@ async function upsertProductionTask(
   });
 }
 
+/**
+ * Warn operations when a delivery deadline is too tight — the backward math put
+ * production before the order date, so üretim + montaj won't fit the window.
+ * Creates/refreshes an open deadline_risk task, or clears it when no longer tight.
+ */
+async function upsertDeadlineRiskTask(
+  supabase: Supabase,
+  tenantId: string,
+  orderId: string,
+  orderCode: string,
+  tight: boolean,
+  deliveryDate: string | null,
+) {
+  await supabase
+    .from("task")
+    .delete()
+    .eq("related_order_id", orderId)
+    .eq("kind", "deadline_risk")
+    .eq("status", "open");
+  if (!tight) return;
+  await supabase.from("task").insert({
+    tenant_id: tenantId,
+    kind: "deadline_risk",
+    related_order_id: orderId,
+    due_date: deliveryDate,
+    assignee_role: "ops",
+    status: "open",
+    payload: {
+      message: `${orderCode}: teslim tarihi (${deliveryDate ?? "—"}) çok yakın — üretim ve montaj bu süreye sığmayabilir. Üretim tarihi mümkün olan en erken güne (sipariş tarihi) ayarlandı.`,
+    },
+  });
+}
+
 export async function createOrder(formData: FormData) {
   const { tenantId } = await getCurrentContext();
   if (!tenantId) throw new Error("Kiracı bulunamadı.");
   const supabase = await createSupabaseServerClient();
   const values = parse(formData);
   const lines = parseLines(formData);
-  const productionDue = await computeProductionDue(supabase, values.delivery_date, lines, values.order_date || null);
+  const { due: productionDue, tight } = await computeProductionDue(
+    supabase, values.delivery_date, lines, values.order_date || null,
+  );
 
   // Tolerant of a lagging migration: retry without requires_resource (0017).
   const payload: Record<string, unknown> = { tenant_id: tenantId, ...values, production_ready_date: productionDue };
@@ -221,8 +258,10 @@ export async function createOrder(formData: FormData) {
     if (le) throw new Error(le.message);
   }
   await upsertProductionTask(supabase, tenantId, data.id, values.code, productionDue);
+  await upsertDeadlineRiskTask(supabase, tenantId, data.id, values.code, tight, values.delivery_date);
 
   revalidatePath("/orders");
+  revalidatePath("/notifications");
   redirect("/orders");
 }
 
@@ -232,7 +271,9 @@ export async function updateOrder(id: string, formData: FormData) {
   const supabase = await createSupabaseServerClient();
   const values = parse(formData);
   const lines = parseLines(formData);
-  const productionDue = await computeProductionDue(supabase, values.delivery_date, lines, values.order_date || null);
+  const { due: productionDue, tight } = await computeProductionDue(
+    supabase, values.delivery_date, lines, values.order_date || null,
+  );
 
   // Tolerant of a lagging migration: retry without requires_resource (0017).
   const payload: Record<string, unknown> = { ...values, production_ready_date: productionDue };
@@ -246,8 +287,10 @@ export async function updateOrder(id: string, formData: FormData) {
 
   await reconcileLines(supabase, tenantId, id, lines);
   await upsertProductionTask(supabase, tenantId, id, values.code, productionDue);
+  await upsertDeadlineRiskTask(supabase, tenantId, id, values.code, tight, values.delivery_date);
 
   revalidatePath("/orders");
+  revalidatePath("/notifications");
   redirect("/orders");
 }
 

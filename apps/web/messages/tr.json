@@ -280,6 +280,7 @@
     "kind": {
       "production_check": "Üretim",
       "manlift_transfer": "Manlift transferi",
+      "deadline_risk": "Teslim riski",
       "other": "Görev"
     }
   },

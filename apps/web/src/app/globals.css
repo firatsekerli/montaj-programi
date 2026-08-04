@@ -1032,6 +1032,11 @@ button.card-action.record:hover {
   color: var(--accent);
   border-color: var(--accent);
 }
+.task-kind.kind-deadline_risk {
+  color: #fff;
+  background: var(--danger);
+  border-color: var(--danger);
+}
 .task-due {
   color: var(--muted);
 }
