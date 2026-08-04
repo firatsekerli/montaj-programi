@@ -112,6 +112,7 @@ async function computeProductionDue(
   supabase: Supabase,
   deliveryDate: string | null,
   lines: LineInput[],
+  orderDate: string | null,
 ): Promise<string | null> {
   if (!deliveryDate || lines.length === 0) return null;
 
@@ -162,7 +163,10 @@ async function computeProductionDue(
   const buffer = Number(setting?.production_buffer_days ?? 2);
 
   const installDays = estimateInstallDays(engineLines, shift, crewCountByType);
-  return productionDueDate(deliveryDate, installDays, buffer, workingWeekdays);
+  const due = productionDueDate(deliveryDate, installDays, buffer, workingWeekdays);
+  // Production can never be due BEFORE the order was placed — if the deadline is
+  // too tight the backward math lands before the order date, so floor it there.
+  return orderDate && due < orderDate ? orderDate : due;
 }
 
 /** Notify operations of the production-due date (create/refresh an open task). */
@@ -197,7 +201,7 @@ export async function createOrder(formData: FormData) {
   const supabase = await createSupabaseServerClient();
   const values = parse(formData);
   const lines = parseLines(formData);
-  const productionDue = await computeProductionDue(supabase, values.delivery_date, lines);
+  const productionDue = await computeProductionDue(supabase, values.delivery_date, lines, values.order_date || null);
 
   // Tolerant of a lagging migration: retry without requires_resource (0017).
   const payload: Record<string, unknown> = { tenant_id: tenantId, ...values, production_ready_date: productionDue };
@@ -228,7 +232,7 @@ export async function updateOrder(id: string, formData: FormData) {
   const supabase = await createSupabaseServerClient();
   const values = parse(formData);
   const lines = parseLines(formData);
-  const productionDue = await computeProductionDue(supabase, values.delivery_date, lines);
+  const productionDue = await computeProductionDue(supabase, values.delivery_date, lines, values.order_date || null);
 
   // Tolerant of a lagging migration: retry without requires_resource (0017).
   const payload: Record<string, unknown> = { ...values, production_ready_date: productionDue };

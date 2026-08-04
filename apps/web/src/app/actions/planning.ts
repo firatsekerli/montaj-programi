@@ -471,7 +471,7 @@ async function reviseProductionForOrder(
 ): Promise<string | null> {
   const { data: order } = await supabase
     .from("work_order")
-    .select("id, tenant_id, code, delivery_date, production_ready_date")
+    .select("id, tenant_id, code, order_date, delivery_date, production_ready_date")
     .eq("id", orderId)
     .maybeSingle();
   if (!order || !order.delivery_date) return null; // only deadline-driven orders
@@ -486,8 +486,11 @@ async function reviseProductionForOrder(
   const earliest = asg?.[0]?.assign_date as string | undefined;
   if (!earliest) return null;
 
-  // Production must be complete one working day before installation starts.
-  const requiredProd = subtractWorkingDays(earliest, 1, ctx.calendar.workingWeekdays);
+  // Production must be complete one working day before installation starts — but
+  // never before the order was placed. Floor it at the order date.
+  let requiredProd = subtractWorkingDays(earliest, 1, ctx.calendar.workingWeekdays);
+  const orderDate = order.order_date as string | null;
+  if (orderDate && requiredProd < orderDate) requiredProd = orderDate;
   const current = order.production_ready_date as string | null;
   if (current && requiredProd >= current) return null; // not earlier than planned
 
