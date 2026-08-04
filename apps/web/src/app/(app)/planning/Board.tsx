@@ -74,8 +74,10 @@ export function PlanningBoard({
   const narrowDays = new Set(
     weekDays.filter((d) => isWeekend(d) && !items.some((a) => a.date === d)),
   );
+  // Day columns keep a comfortable minimum width; when the 9 days don't fit, the
+  // board scrolls horizontally inside its own container instead of squashing.
   const template = `var(--team-col) ${weekDays
-    .map((d) => (narrowDays.has(d) ? "var(--wk-narrow)" : "1fr"))
+    .map((d) => (narrowDays.has(d) ? "var(--wk-narrow)" : "minmax(150px, 1fr)"))
     .join(" ")}`;
 
   function apply(id: string, teamId: string, date: string) {

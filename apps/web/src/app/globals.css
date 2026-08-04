@@ -634,6 +634,7 @@ label.checkbox input {
   display: flex;
   flex-direction: column;
   gap: 0.3rem;
+  min-width: 0;
 }
 .board-cell.drop.over {
   outline: 2px dashed var(--accent);
