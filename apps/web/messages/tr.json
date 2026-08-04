@@ -145,6 +145,9 @@
     "editTitle": "Ekibi Düzenle",
     "name": "Ekip",
     "kind": "Tür",
+    "kindInstall": "Montaj Ekibi",
+    "kindShipping": "Sevkiyat Ekibi",
+    "kindHelp": "Sevkiyat ekipleri montaj planına ve panoya çıkmaz; her montaj için kendilerine ‘sevk et’ görevi düşer.",
     "members": "Üyeler",
     "capabilities": "Yetkinlikler",
     "subcontractor": "Taşeron",
@@ -281,6 +284,7 @@
       "production_check": "Üretim",
       "manlift_transfer": "Manlift transferi",
       "deadline_risk": "Teslim riski",
+      "shipment": "Sevkiyat",
       "other": "Görev"
     }
   },

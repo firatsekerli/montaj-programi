@@ -33,10 +33,16 @@ export default async function PlanningPage({
   const format = await getFormatter();
   const supabase = await createSupabaseServerClient();
 
-  const [{ data: teams }, { data: plan }] = await Promise.all([
-    supabase.from("team").select("id, name").order("preference_weight"),
-    supabase.from("plan").select("id, unplaced").limit(1).maybeSingle(),
-  ]);
+  // Shipping crews never install, so keep them off the board. Tolerant of a
+  // lagging migration: if `kind` is absent, fall back to showing every team.
+  const teamsWithKind = await supabase.from("team").select("id, name, kind").order("preference_weight");
+  const teamsRes = teamsWithKind.error
+    ? await supabase.from("team").select("id, name").order("preference_weight")
+    : teamsWithKind;
+  const teams = ((teamsRes.data ?? []) as Array<{ id: string; name: string; kind?: string }>).filter(
+    (t) => (t.kind ?? "install") !== "shipping",
+  );
+  const { data: plan } = await supabase.from("plan").select("id, unplaced").limit(1).maybeSingle();
 
   const unplaced: Unplaced[] = (plan?.unplaced as Unplaced[] | undefined) ?? [];
 

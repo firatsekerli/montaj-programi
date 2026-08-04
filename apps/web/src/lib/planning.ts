@@ -22,6 +22,17 @@ export interface Calendar {
   bufferDays: number;
 }
 
+/** A shipping (sevkiyat) crew — not scheduled; drives the shipment tasks. */
+export interface ShippingTeam {
+  id: string;
+  name: string;
+  baseCoord?: Coord;
+  /** Member names (e.g. "Ferhat"). */
+  people: string[];
+  /** Vehicle names / plates bound to the crew. */
+  vehicles: string[];
+}
+
 export interface PlanningContext {
   typeMap: Map<string, WorkItemType>;
   rules: CapacityRule[];
@@ -34,6 +45,8 @@ export interface PlanningContext {
   resources: Record<string, string[]>;
   /** Overpack tolerance (0.10 = a day may pack up to 110%). */
   dayFillTolerance: number;
+  /** Shipping crews, held aside from scheduling to raise shipment tasks. */
+  shippingTeams: ShippingTeam[];
 }
 
 export async function buildPlanningContext(supabase: Supabase): Promise<PlanningContext> {
@@ -73,6 +86,18 @@ export async function buildPlanningContext(supabase: Supabase): Promise<Planning
     .maybeSingle();
   const dayFillTolerance = Number((tolRow as { day_fill_tolerance?: number } | null)?.day_fill_tolerance ?? 0);
 
+  // Team role (0020) and member names — fetched tolerantly. A shipping crew is
+  // excluded from scheduling; its name/members/vehicle feed the shipment tasks.
+  const { data: kindRows } = await supabase.from("team").select("id, kind");
+  const kindById = new Map<string, string>();
+  for (const r of (kindRows ?? []) as Array<{ id: string; kind: string | null }>) {
+    kindById.set(r.id, r.kind ?? "install");
+  }
+  const { data: personRows } = await supabase.from("person").select("id, name");
+  const personName = new Map<string, string>(
+    ((personRows ?? []) as Array<{ id: string; name: string | null }>).map((p) => [p.id, p.name ?? ""]),
+  );
+
   const { data: locRows } = await supabase.from("location").select("id, lat, lon");
   const locCoords: Record<string, Coord> = {};
   for (const l of (locRows ?? []) as Array<{ id: string; lat: number | null; lon: number | null }>) {
@@ -84,18 +109,20 @@ export async function buildPlanningContext(supabase: Supabase): Promise<Planning
   // migration — absent columns just leave the fleet unconfigured.
   const { data: assetRows } = await supabase
     .from("asset")
-    .select("id, team_id, resource_kind");
+    .select("id, team_id, resource_kind, name");
   const { data: assetCapRows } = await supabase
     .from("asset_capacity")
     .select("asset_id, work_item_type_id, max_units");
 
   const assetTeam: Record<string, string> = {};
   const vehicleIdsByTeam: Record<string, string[]> = {};
+  const vehicleNamesByTeam: Record<string, string[]> = {};
   const resources: Record<string, string[]> = {};
-  for (const a of (assetRows ?? []) as Array<{ id: string; team_id: string | null; resource_kind: string | null }>) {
+  for (const a of (assetRows ?? []) as Array<{ id: string; team_id: string | null; resource_kind: string | null; name: string | null }>) {
     if (a.team_id) {
       assetTeam[a.id] = a.team_id;
       (vehicleIdsByTeam[a.team_id] ??= []).push(a.id);
+      if (a.name) (vehicleNamesByTeam[a.team_id] ??= []).push(a.name);
     }
     if (a.resource_kind) (resources[a.resource_kind] ??= []).push(a.id);
   }
@@ -170,7 +197,9 @@ export async function buildPlanningContext(supabase: Supabase): Promise<Planning
     }
   }
 
-  const teams: ScheduleTeam[] = (teamRows ?? []).map((t) => {
+  // Only install crews are scheduled; shipping crews are held aside for tasks.
+  const installRows = (teamRows ?? []).filter((t) => (kindById.get(t.id) ?? "install") !== "shipping");
+  const teams: ScheduleTeam[] = installRows.map((t) => {
     const baseCoord = t.base_location_id ? locCoords[t.base_location_id] : undefined;
     return {
       id: t.id,
@@ -190,9 +219,21 @@ export async function buildPlanningContext(supabase: Supabase): Promise<Planning
     };
   });
 
+  const shippingTeams: ShippingTeam[] = (teamRows ?? [])
+    .filter((t) => (kindById.get(t.id) ?? "install") === "shipping")
+    .map((t) => ({
+      id: t.id,
+      name: t.name,
+      baseCoord: t.base_location_id ? locCoords[t.base_location_id] : undefined,
+      people: (t.team_member ?? [])
+        .map((m: { person_id: string }) => personName.get(m.person_id) ?? "")
+        .filter(Boolean),
+      vehicles: vehicleNamesByTeam[t.id] ?? [],
+    }));
+
   return {
     typeMap, rules, shift, teams, calendar, siteCoords,
-    avgSpeedKmh: AVG_KMH, resources, dayFillTolerance,
+    avgSpeedKmh: AVG_KMH, resources, dayFillTolerance, shippingTeams,
   };
 }
 

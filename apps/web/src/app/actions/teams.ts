@@ -15,8 +15,10 @@ function num(formData: FormData, key: string): number | null {
 }
 
 function parse(formData: FormData) {
+  const kind = String(formData.get("kind") ?? "install").trim();
   return {
     name: String(formData.get("name") ?? "").trim(),
+    kind: kind === "shipping" ? "shipping" : "install",
     is_subcontractor: formData.get("is_subcontractor") === "on",
     preference_weight: Number(formData.get("preference_weight") ?? 100),
   };
@@ -98,11 +100,23 @@ export async function createTeam(formData: FormData) {
   if (!tenantId) throw new Error("Kiracı bulunamadı.");
   const supabase = await createSupabaseServerClient();
   const base_location_id = await resolveBaseLocation(supabase, tenantId, formData);
-  const { data, error } = await supabase
+  const values = parse(formData);
+  // Tolerant of a lagging migration: retry without `kind` (0020) if absent.
+  let ins = await supabase
     .from("team")
-    .insert({ tenant_id: tenantId, ...parse(formData), base_location_id })
+    .insert({ tenant_id: tenantId, ...values, base_location_id })
     .select("id")
     .single();
+  if (ins.error) {
+    const { kind: _k, ...rest } = values;
+    void _k;
+    ins = await supabase
+      .from("team")
+      .insert({ tenant_id: tenantId, ...rest, base_location_id })
+      .select("id")
+      .single();
+  }
+  const { data, error } = ins;
   if (error) throw new Error(error.message);
 
   await setRelations(
@@ -121,11 +135,15 @@ export async function updateTeam(id: string, formData: FormData) {
   if (!tenantId) throw new Error("Kiracı bulunamadı.");
   const supabase = await createSupabaseServerClient();
   const base_location_id = await resolveBaseLocation(supabase, tenantId, formData);
-  const { error } = await supabase
-    .from("team")
-    .update({ ...parse(formData), base_location_id })
-    .eq("id", id);
-  if (error) throw new Error(error.message);
+  const values = parse(formData);
+  // Tolerant of a lagging migration: retry without `kind` (0020) if absent.
+  let upd = await supabase.from("team").update({ ...values, base_location_id }).eq("id", id);
+  if (upd.error) {
+    const { kind: _k, ...rest } = values;
+    void _k;
+    upd = await supabase.from("team").update({ ...rest, base_location_id }).eq("id", id);
+  }
+  if (upd.error) throw new Error(upd.error.message);
 
   await setRelations(
     supabase,

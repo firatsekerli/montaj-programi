@@ -1037,6 +1037,10 @@ button.card-action.record:hover {
   background: var(--danger);
   border-color: var(--danger);
 }
+.task-kind.kind-shipment {
+  color: #e0b34d;
+  border-color: color-mix(in srgb, #e0b34d 60%, var(--border));
+}
 .task-due {
   color: var(--muted);
 }

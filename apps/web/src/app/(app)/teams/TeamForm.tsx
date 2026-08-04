@@ -20,6 +20,7 @@ export async function TeamForm({
   locations: LocationOption[];
   defaults?: {
     name?: string;
+    kind?: string;
     isSubcontractor?: boolean;
     preferenceWeight?: number;
     baseLocationId?: string | null;
@@ -42,6 +43,15 @@ export async function TeamForm({
           <label>
             {t("name")}
             <input name="name" defaultValue={defaults.name} required />
+          </label>
+
+          <label>
+            {t("kind")}
+            <select name="kind" defaultValue={defaults.kind ?? "install"}>
+              <option value="install">{t("kindInstall")}</option>
+              <option value="shipping">{t("kindShipping")}</option>
+            </select>
+            <span className="help">{t("kindHelp")}</span>
           </label>
 
           <label className="checkbox">

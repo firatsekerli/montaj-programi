@@ -50,6 +50,7 @@ export default async function EditTeamPage({ params }: { params: Promise<{ id: s
         submitLabel={tc("save")}
         defaults={{
           name: row.name,
+          kind: (row as { kind?: string }).kind,
           isSubcontractor: row.is_subcontractor,
           preferenceWeight: row.preference_weight,
           baseLocationId: row.base_location_id,

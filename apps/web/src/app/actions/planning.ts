@@ -2,6 +2,7 @@
 
 import { revalidatePath } from "next/cache";
 import {
+  haversineKm,
   kmToMinutes,
   nearestNeighborTourKm,
   schedule,
@@ -234,6 +235,7 @@ export async function generatePlan() {
   // operator already made survive a regenerate.
   const siteByOrder = new Map(scheduleOrders.map((o) => [o.orderId, o.siteId] as const));
   await syncManliftTransferTasks(supabase, ctx, tenantId, assignments, siteByOrder);
+  await syncShipmentTasks(supabase, ctx, tenantId, planId);
 
   revalidatePath("/planning");
   revalidatePath("/notifications");
@@ -455,6 +457,82 @@ async function syncManliftTransferTasks(
   }
 
   await reconcileTasks(supabase, tenantId, "manlift_transfer", desired);
+}
+
+/**
+ * For each order with planned installs, raise a shipment task for the shipping
+ * (sevkiyat) crew nearest the site: "<kişi>, <plaka> ile <şantiye>'ye <kapılar>
+ * <montaj tarihi> montajı için <sevk tarihi> sevk etmeli." Due one working day
+ * before the order's first install day, reconciled by dedup_key so the operator's
+ * ticks survive a regenerate. No shipping crews → nothing to do (tasks cleared).
+ */
+async function syncShipmentTasks(
+  supabase: Supabase,
+  ctx: PlanningContext,
+  tenantId: string,
+  planId: string,
+) {
+  if (ctx.shippingTeams.length === 0) {
+    await reconcileTasks(supabase, tenantId, "shipment", []);
+    return;
+  }
+
+  // All installs still to happen (exclude already-installed/completed cards).
+  const { data: rows } = await supabase
+    .from("assignment")
+    .select(
+      "assign_date, units, order_id, order_line:order_line_id(work_item_type_id), work_order:order_id(code, site_id)",
+    )
+    .eq("plan_id", planId)
+    .neq("status", "completed");
+
+  const { data: typeRows } = await supabase.from("work_item_type").select("id, name");
+  const typeName = new Map<string, string>((typeRows ?? []).map((r) => [r.id as string, r.name as string]));
+  const { data: siteRows } = await supabase.from("site").select("id, name");
+  const siteName = new Map<string, string>((siteRows ?? []).map((r) => [r.id as string, r.name as string]));
+
+  // Group by order: first install day, site, and door counts per type.
+  type Grp = { first: string; siteId?: string; code: string; doors: Map<string, number> };
+  const byOrder = new Map<string, Grp>();
+  for (const r of rows ?? []) {
+    const line = one<{ work_item_type_id: string }>(r.order_line);
+    const order = one<{ code: string; site_id: string }>(r.work_order);
+    const orderId = r.order_id as string;
+    const date = r.assign_date as string;
+    const g = byOrder.get(orderId) ?? { first: date, siteId: order?.site_id, code: order?.code ?? "", doors: new Map() };
+    if (date < g.first) g.first = date;
+    if (line) g.doors.set(line.work_item_type_id, (g.doors.get(line.work_item_type_id) ?? 0) + (r.units as number));
+    byOrder.set(orderId, g);
+  }
+
+  const desired: DesiredTask[] = [];
+  for (const [orderId, g] of byOrder) {
+    if (!g.siteId) continue;
+    const siteCoord = ctx.siteCoords[g.siteId];
+    // Nearest shipping crew to the site (falls back to the first when no coords).
+    const crew =
+      siteCoord && ctx.shippingTeams.some((s) => s.baseCoord)
+        ? [...ctx.shippingTeams]
+            .filter((s) => s.baseCoord)
+            .sort((a, b) => haversineKm(a.baseCoord!, siteCoord) - haversineKm(b.baseCoord!, siteCoord))[0]!
+        : ctx.shippingTeams[0]!;
+    const shipDay = subtractWorkingDays(g.first, 1, ctx.calendar.workingWeekdays);
+    const person = crew.people[0] ?? crew.name;
+    const vehicle = crew.vehicles[0] ?? "araç";
+    const doorsStr = [...g.doors.entries()]
+      .map(([tid, n]) => `${n}× ${typeName.get(tid) ?? ""}`.trim())
+      .join(", ");
+    const site = siteName.get(g.siteId) ?? "şantiye";
+    const message = `${person}, ${vehicle} ile ${site} şantiyesine ${doorsStr} kapılarını ${fmtTR(g.first)} montajı için ${fmtTR(shipDay)} tarihinde sevk etmeli.`;
+    desired.push({
+      dedupKey: `${orderId}:${g.first}:${g.siteId}`,
+      relatedOrderId: orderId,
+      dueDate: shipDay,
+      payload: { message, kind: "shipment", crewId: crew.id, siteId: g.siteId, installDate: g.first },
+    });
+  }
+
+  await reconcileTasks(supabase, tenantId, "shipment", desired);
 }
 
 /**
