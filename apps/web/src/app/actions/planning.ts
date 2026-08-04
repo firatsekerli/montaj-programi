@@ -651,49 +651,100 @@ export async function moveAssignment(
 }
 
 /**
- * Record how many doors were actually installed on a card. The installed count
- * becomes a completed (locked) card; the shortfall (planned − installed) returns
- * to the order's remaining and is re-planned as new cards. installed = 0 leaves
- * the card to be re-planned as-is.
+ * Record how many doors were actually installed on a card — a surgical, in-place
+ * split that touches ONLY this card (no full re-plan):
+ *   • installed ≥ units → the card is completed as-is.
+ *   • 0 < installed < units → the card becomes the completed part, and the
+ *     shortfall is left as a sibling "planned" card on the same team-day (so the
+ *     day's fill is unchanged and the remainder is right there to move or, on the
+ *     next "Yeniden Oluştur", to auto-place). undoInstalled reverses exactly this.
+ *   • installed ≤ 0 → the card is left planned, untouched.
  */
 export async function recordInstalled(assignmentId: string, installed: number) {
   const supabase = await createSupabaseServerClient();
   const { data: a } = await supabase
     .from("assignment")
-    .select("id, units, team_id, assign_date, plan_id")
+    .select("id, tenant_id, units, team_id, assign_date, plan_id, order_id, order_line_id, asset_ids")
     .eq("id", assignmentId)
     .single();
   if (!a) throw new Error("Atama bulunamadı.");
-  const done = Math.max(0, Math.min(Math.round(installed), a.units as number));
+  const units = a.units as number;
+  const done = Math.max(0, Math.min(Math.round(installed), units));
 
   if (done <= 0) {
     await supabase.from("assignment").update({ status: "planned" }).eq("id", assignmentId);
-  } else {
-    await supabase.from("assignment").update({ units: done, status: "completed" }).eq("id", assignmentId);
-    // Re-cost the day so the completed card's fill reflects the installed count.
-    const ctx = await buildPlanningContext(supabase);
-    await recomputeTeamDay(supabase, ctx, a.plan_id as string, a.team_id as string, a.assign_date as string);
+    revalidatePath("/planning");
+    return;
   }
-  // Re-plan: the installed part stays committed; the shortfall becomes new cards.
-  await generatePlan();
+
+  await supabase.from("assignment").update({ units: done, status: "completed" }).eq("id", assignmentId);
+  // Partial install: leave the shortfall as a planned sibling on the same day.
+  if (done < units) {
+    await supabase.from("assignment").insert({
+      tenant_id: a.tenant_id,
+      plan_id: a.plan_id,
+      assign_date: a.assign_date,
+      team_id: a.team_id,
+      order_id: a.order_id,
+      order_line_id: a.order_line_id,
+      units: units - done,
+      asset_ids: a.asset_ids ?? [],
+      status: "planned",
+    });
+  }
+  // Re-cost just this team-day so both cards' fill is consistent — nothing else.
+  const ctx = await buildPlanningContext(supabase);
+  await recomputeTeamDay(supabase, ctx, a.plan_id as string, a.team_id as string, a.assign_date as string);
+  revalidatePath("/planning");
 }
 
 /**
- * Undo a recorded installation. Returns the completed card to auto-planning
- * (planned + non-manual) so generatePlan discards it and re-plans the order's
- * full remaining from scratch — the mistaken completion and any split-off
- * remainder cards are cleaned up in one step.
+ * Undo a recorded installation — the exact inverse of recordInstalled, surgical
+ * and local: merge the split-off remainder back into this card and return it to
+ * planned. Only this team-day is touched; the rest of the plan is left alone.
  */
 export async function undoInstalled(assignmentId: string) {
   const supabase = await createSupabaseServerClient();
-  // Tolerant of a lagging migration: retry without `manual` if absent.
+  const { data: a } = await supabase
+    .from("assignment")
+    .select("id, units, team_id, assign_date, plan_id, order_line_id")
+    .eq("id", assignmentId)
+    .single();
+  if (!a) throw new Error("Atama bulunamadı.");
+
+  // The remainder is the planned sibling of the same order line on this team-day.
+  let restored = a.units as number;
+  if (a.order_line_id) {
+    const { data: sibs } = await supabase
+      .from("assignment")
+      .select("id, units")
+      .eq("plan_id", a.plan_id as string)
+      .eq("team_id", a.team_id as string)
+      .eq("assign_date", a.assign_date as string)
+      .eq("order_line_id", a.order_line_id as string)
+      .eq("status", "planned")
+      .neq("id", assignmentId);
+    const ids = (sibs ?? []).map((s) => s.id as string);
+    restored += (sibs ?? []).reduce((s, r) => s + (r.units as number), 0);
+    if (ids.length) await supabase.from("assignment").delete().in("id", ids);
+  }
+
+  // Restore this card to a single planned card with the full original count.
   let { error } = await supabase
     .from("assignment")
-    .update({ status: "planned", manual: false })
+    .update({ units: restored, status: "planned", manual: false })
     .eq("id", assignmentId);
-  if (error) ({ error } = await supabase.from("assignment").update({ status: "planned" }).eq("id", assignmentId));
+  if (error) {
+    ({ error } = await supabase
+      .from("assignment")
+      .update({ units: restored, status: "planned" })
+      .eq("id", assignmentId));
+  }
   if (error) throw new Error(error.message);
-  await generatePlan();
+
+  const ctx = await buildPlanningContext(supabase);
+  await recomputeTeamDay(supabase, ctx, a.plan_id as string, a.team_id as string, a.assign_date as string);
+  revalidatePath("/planning");
 }
 
 /**
