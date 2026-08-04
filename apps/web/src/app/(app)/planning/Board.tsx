@@ -131,8 +131,11 @@ export function PlanningBoard({
   const [boardWidth, setBoardWidth] = useState(0);
   useEffect(() => {
     const inner = innerRef.current;
-    if (!inner) return;
-    const update = () => setBoardWidth(inner.offsetWidth);
+    const scroll = boardRef.current;
+    if (!inner || !scroll) return;
+    // scrollWidth = the full board extent including the part that overflows the
+    // scroll container — that's what the top scrollbar's spacer must match.
+    const update = () => setBoardWidth(scroll.scrollWidth);
     update();
     const ro = new ResizeObserver(update);
     ro.observe(inner);

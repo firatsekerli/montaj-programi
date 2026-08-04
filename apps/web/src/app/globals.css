@@ -613,8 +613,11 @@ label.checkbox input {
   background: var(--border);
   border: 1px solid var(--border);
   border-radius: var(--radius);
-  overflow: hidden;
-  min-width: 740px;
+  /* NB: no `overflow: hidden` — it would clip the columns that overflow the
+     container instead of letting .board-scroll scroll them. With minmax(150px,1fr)
+     columns the 150px minimums push the grid past the container when the week
+     doesn't fit, so .board-scroll scrolls; on wide screens 1fr fills instead. */
+  min-width: 100%;
   /* Width of an empty weekend column (widens to 1fr once a card lands on it). */
   --wk-narrow: 40px;
   /* Team-name column — narrow; the name wraps ("KAZIM" / "Ekibi"). */
