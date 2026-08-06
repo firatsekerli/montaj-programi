@@ -55,7 +55,7 @@ export default function LoginPage() {
             />
           </label>
           {error && <p className="error">{error}</p>}
-          <button type="submit" disabled={loading}>
+          <button type="submit" className="btn" disabled={loading}>
             {loading ? t("signingIn") : t("signIn")}
           </button>
         </form>
