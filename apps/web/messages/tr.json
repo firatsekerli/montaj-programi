@@ -209,7 +209,7 @@
   },
   "orders": {
     "title": "Siparişler",
-    "subtitle": "Sipariş listesi — öncelik sipariş tarihine göredir.",
+    "subtitle": "Sipariş listesi — teslim tarihine göre sıralı (en yakın önce).",
     "new": "Yeni Sipariş",
     "newTitle": "Yeni Sipariş",
     "editTitle": "Siparişi Düzenle",

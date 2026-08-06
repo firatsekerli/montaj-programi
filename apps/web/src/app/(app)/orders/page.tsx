@@ -12,7 +12,10 @@ export default async function OrdersPage() {
     .select(
       "id, code, order_date, delivery_date, production_ready_date, status, requires_demolition, district, order_line(quantity, work_item_type(name))",
     )
-    .order("delivery_date", { nullsFirst: false });
+    // Most urgent deadline first, then earliest order date — matches how the
+    // scheduler prioritises (delivery-date driven).
+    .order("delivery_date", { nullsFirst: false })
+    .order("order_date", { ascending: true });
 
   const orders: OrderRow[] = (rows ?? []).map((r) => ({
     id: r.id as string,
