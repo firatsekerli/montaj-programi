@@ -548,6 +548,42 @@ label.checkbox input {
 .btn-ghost:hover {
   border-color: var(--accent);
 }
+/* Orders list filter toolbar. */
+.list-toolbar {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0.75rem;
+  padding: 0 0.25rem 0.85rem;
+  margin-bottom: 0.5rem;
+  border-bottom: 1px solid var(--border);
+}
+.list-toolbar .chip-row {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.4rem;
+}
+.list-search {
+  background: var(--panel-2);
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  padding: 0.4rem 0.7rem;
+  color: var(--text);
+  font: inherit;
+  font-size: 0.85rem;
+  min-width: 180px;
+}
+.list-district {
+  background: var(--panel-2);
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  padding: 0.4rem 0.6rem;
+  color: var(--text);
+  font: inherit;
+  font-size: 0.85rem;
+  margin-inline-start: auto;
+}
+
 /* Order status: read-only badge + a block/unblock button. */
 .status-cell {
   display: inline-flex;
