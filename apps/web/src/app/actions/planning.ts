@@ -138,10 +138,10 @@ export async function generatePlan() {
   const orderCols =
     "id, code, delivery_date, production_ready_date, production_confirmed, requires_demolition, district, access_overhead_min, order_line(id, work_item_type_id, quantity, attributes)";
   let orders = (
-    await supabase.from("work_order").select(`${orderCols}, requires_resource`).in("status", ["backlog", "planned"])
+    await supabase.from("work_order").select(`${orderCols}, requires_resource`).in("status", ["backlog", "planned", "in_progress"])
   ).data as OrderRow[] | null;
   if (!orders) {
-    orders = (await supabase.from("work_order").select(orderCols).in("status", ["backlog", "planned"])).data as
+    orders = (await supabase.from("work_order").select(orderCols).in("status", ["backlog", "planned", "in_progress"])).data as
       | OrderRow[]
       | null;
   }
@@ -250,9 +250,75 @@ export async function generatePlan() {
   const siteByOrder = new Map(scheduleOrders.map((o) => [o.orderId, o.siteId] as const));
   await syncManliftTransferTasks(supabase, ctx, tenantId, assignments, siteByOrder);
   await syncShipmentTasks(supabase, ctx, tenantId, planId);
+  await syncAllOrderStatuses(supabase, tenantId);
 
   revalidatePath("/planning");
   revalidatePath("/notifications");
+  revalidatePath("/orders");
+}
+
+/** Derive an order's status from totals: backlog < planned < in_progress < completed. */
+function deriveStatus(total: number, installed: number, hasAssignment: boolean): string {
+  if (total > 0 && installed >= total) return "completed";
+  if (installed > 0) return "in_progress";
+  if (hasAssignment) return "planned";
+  return "backlog";
+}
+
+/**
+ * Keep an order's status in step with its plan and installs:
+ *   no cards → Bekleyen · has cards → Planlandı · some installed → Devam ediyor ·
+ *   all installed → Tamamlandı.
+ * "blocked" (Engellendi) is a manual state and is never overwritten.
+ */
+async function syncOrderStatus(supabase: Supabase, orderId: string) {
+  const { data: order } = await supabase
+    .from("work_order")
+    .select("status")
+    .eq("id", orderId)
+    .maybeSingle();
+  if (!order || order.status === "blocked") return;
+  const [{ data: lines }, { data: asg }] = await Promise.all([
+    supabase.from("order_line").select("quantity").eq("order_id", orderId),
+    supabase.from("assignment").select("units, status").eq("order_id", orderId),
+  ]);
+  const total = (lines ?? []).reduce((s, l) => s + Number((l as { quantity: number }).quantity), 0);
+  const rows = (asg ?? []) as Array<{ units: number; status: string }>;
+  const installed = rows.filter((r) => r.status === "completed").reduce((s, r) => s + Number(r.units), 0);
+  const next = deriveStatus(total, installed, rows.length > 0);
+  if (next !== order.status) await supabase.from("work_order").update({ status: next }).eq("id", orderId);
+}
+
+/** Bulk version of syncOrderStatus for the whole tenant (used after a re-plan). */
+async function syncAllOrderStatuses(supabase: Supabase, tenantId: string) {
+  const [{ data: orders }, { data: lines }, { data: asg }] = await Promise.all([
+    supabase.from("work_order").select("id, status").eq("tenant_id", tenantId),
+    supabase.from("order_line").select("order_id, quantity"),
+    supabase.from("assignment").select("order_id, units, status"),
+  ]);
+  const total = new Map<string, number>();
+  for (const l of (lines ?? []) as Array<{ order_id: string; quantity: number }>) {
+    total.set(l.order_id, (total.get(l.order_id) ?? 0) + Number(l.quantity));
+  }
+  const installed = new Map<string, number>();
+  const hasAny = new Set<string>();
+  for (const a of (asg ?? []) as Array<{ order_id: string; units: number; status: string }>) {
+    hasAny.add(a.order_id);
+    if (a.status === "completed") installed.set(a.order_id, (installed.get(a.order_id) ?? 0) + Number(a.units));
+  }
+  const byNext = new Map<string, string[]>();
+  for (const o of (orders ?? []) as Array<{ id: string; status: string }>) {
+    if (o.status === "blocked") continue; // manual — leave it.
+    const next = deriveStatus(total.get(o.id) ?? 0, installed.get(o.id) ?? 0, hasAny.has(o.id));
+    if (next !== o.status) {
+      const arr = byNext.get(next) ?? [];
+      arr.push(o.id);
+      byNext.set(next, arr);
+    }
+  }
+  for (const [next, ids] of byNext) {
+    if (ids.length) await supabase.from("work_order").update({ status: next }).in("id", ids);
+  }
 }
 
 /**
@@ -679,7 +745,9 @@ export async function recordInstalled(assignmentId: string, installed: number) {
 
   if (done <= 0) {
     await supabase.from("assignment").update({ status: "planned" }).eq("id", assignmentId);
+    await syncOrderStatus(supabase, a.order_id as string);
     revalidatePath("/planning");
+    revalidatePath("/orders");
     return;
   }
 
@@ -701,7 +769,9 @@ export async function recordInstalled(assignmentId: string, installed: number) {
   // Re-cost just this team-day so both cards' fill is consistent — nothing else.
   const ctx = await buildPlanningContext(supabase);
   await recomputeTeamDay(supabase, ctx, a.plan_id as string, a.team_id as string, a.assign_date as string);
+  await syncOrderStatus(supabase, a.order_id as string);
   revalidatePath("/planning");
+  revalidatePath("/orders");
 }
 
 /**
@@ -713,7 +783,7 @@ export async function undoInstalled(assignmentId: string) {
   const supabase = await createSupabaseServerClient();
   const { data: a } = await supabase
     .from("assignment")
-    .select("id, units, team_id, assign_date, plan_id, order_line_id")
+    .select("id, units, team_id, assign_date, plan_id, order_id, order_line_id")
     .eq("id", assignmentId)
     .single();
   if (!a) throw new Error("Atama bulunamadı.");
@@ -750,7 +820,9 @@ export async function undoInstalled(assignmentId: string) {
 
   const ctx = await buildPlanningContext(supabase);
   await recomputeTeamDay(supabase, ctx, a.plan_id as string, a.team_id as string, a.assign_date as string);
+  await syncOrderStatus(supabase, a.order_id as string);
   revalidatePath("/planning");
+  revalidatePath("/orders");
 }
 
 /**
