@@ -1,8 +1,9 @@
 "use client";
 
-import { useState } from "react";
+import { useActionState, useState } from "react";
 import { useTranslations } from "next-intl";
 import { ANKARA_DISTRICTS } from "@/lib/districts";
+import type { OrderFormState } from "@/app/actions/orders";
 
 interface Option {
   id: string;
@@ -25,7 +26,7 @@ export function OrderForm({
   defaults = {},
   submitLabel,
 }: {
-  action: (formData: FormData) => void | Promise<void>;
+  action: (prev: OrderFormState, formData: FormData) => Promise<OrderFormState>;
   types: TypeOption[];
   defaults?: {
     code?: string;
@@ -44,6 +45,10 @@ export function OrderForm({
 }) {
   const t = useTranslations("orders");
   const tc = useTranslations("crud");
+  const [state, formAction, pending] = useActionState(action, {});
+  // Controlled so the pickers can enforce order_date ≤ delivery_date live.
+  const [orderDate, setOrderDate] = useState(defaults.orderDate ?? "");
+  const [deliveryDate, setDeliveryDate] = useState(defaults.deliveryDate ?? "");
   const [lines, setLines] = useState<Line[]>(
     defaults.lines && defaults.lines.length
       ? defaults.lines
@@ -67,7 +72,7 @@ export function OrderForm({
   }
 
   return (
-    <form action={action} className="form form-wide panel">
+    <form action={formAction} className="form form-wide panel">
       <input type="hidden" name="lines" value={JSON.stringify(lines)} />
 
       <label>
@@ -104,11 +109,25 @@ export function OrderForm({
       <div className="row-2">
         <label>
           {t("orderDate")}
-          <input name="order_date" type="date" defaultValue={defaults.orderDate} required />
+          <input
+            name="order_date"
+            type="date"
+            value={orderDate}
+            max={deliveryDate || undefined}
+            onChange={(e) => setOrderDate(e.target.value)}
+            required
+          />
         </label>
         <label>
           {t("deliveryDate")}
-          <input name="delivery_date" type="date" defaultValue={defaults.deliveryDate} required />
+          <input
+            name="delivery_date"
+            type="date"
+            value={deliveryDate}
+            min={orderDate || undefined}
+            onChange={(e) => setDeliveryDate(e.target.value)}
+            required
+          />
         </label>
       </div>
       <span className="help">{t("deliveryDateHelp")}</span>
@@ -205,7 +224,12 @@ export function OrderForm({
         </button>
       </fieldset>
 
-      <button type="submit" className="btn">
+      {state?.error && (
+        <p className="error" role="alert">
+          {state.error}
+        </p>
+      )}
+      <button type="submit" className="btn" disabled={pending}>
         {submitLabel}
       </button>
     </form>

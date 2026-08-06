@@ -243,7 +243,25 @@ async function upsertDeadlineRiskTask(
   });
 }
 
-export async function createOrder(formData: FormData) {
+export type OrderFormState = { error?: string };
+
+/** The order date can never fall after the delivery date. Returns a message when
+ *  invalid (both dates present and order_date > delivery_date), else null. */
+function validateDates(formData: FormData): string | null {
+  const order = String(formData.get("order_date") ?? "").trim();
+  const delivery = String(formData.get("delivery_date") ?? "").trim();
+  if (order && delivery && order > delivery) {
+    return "Sipariş tarihi, teslim tarihinden sonra olamaz.";
+  }
+  return null;
+}
+
+export async function createOrder(
+  _prev: OrderFormState,
+  formData: FormData,
+): Promise<OrderFormState> {
+  const dateError = validateDates(formData);
+  if (dateError) return { error: dateError };
   const { tenantId } = await getCurrentContext();
   if (!tenantId) throw new Error("Kiracı bulunamadı.");
   const supabase = await createSupabaseServerClient();
@@ -278,7 +296,13 @@ export async function createOrder(formData: FormData) {
   redirect("/orders");
 }
 
-export async function updateOrder(id: string, formData: FormData) {
+export async function updateOrder(
+  id: string,
+  _prev: OrderFormState,
+  formData: FormData,
+): Promise<OrderFormState> {
+  const dateError = validateDates(formData);
+  if (dateError) return { error: dateError };
   const { tenantId } = await getCurrentContext();
   if (!tenantId) throw new Error("Kiracı bulunamadı.");
   const supabase = await createSupabaseServerClient();
