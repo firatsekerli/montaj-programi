@@ -19,7 +19,6 @@ import {
   buildPlanningContext,
   horizonWorkingDays,
   lineFacts,
-  mondayOf,
   subtractWorkingDays,
   type PlanningContext,
 } from "@/lib/planning";
@@ -60,7 +59,14 @@ export async function generatePlan() {
   const supabase = await createSupabaseServerClient();
 
   const ctx = await buildPlanningContext(supabase);
-  const planStart = mondayOf(new Date());
+  // Start the horizon at TODAY, not the Monday of the current week — installs
+  // can't be scheduled into days that have already passed. Completed/manual cards
+  // on earlier days are still kept (they're in `committed`), but no NEW work is
+  // placed before today.
+  const now = new Date();
+  const planStart = new Date(Date.UTC(now.getUTCFullYear(), now.getUTCMonth(), now.getUTCDate()))
+    .toISOString()
+    .slice(0, 10);
   const workingDays = horizonWorkingDays(planStart, ctx.calendar.workingWeekdays);
   const firstDay = workingDays[0]!;
   const lastDay = workingDays[workingDays.length - 1]!;
