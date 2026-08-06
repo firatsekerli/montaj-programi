@@ -51,18 +51,22 @@ export const getCurrentContext = cache(async (): Promise<CurrentContext> => {
 
   const { data: membership } = await supabase
     .from("membership")
-    .select("role, tenant_id, tenant:tenant_id(name)")
+    .select("role, tenant_id, tenant:tenant_id(name), app_user:user_id(full_name)")
     .limit(1)
     .maybeSingle();
 
   const tenant = membership?.tenant as { name: string } | { name: string }[] | null | undefined;
   const tenantName = Array.isArray(tenant) ? (tenant[0]?.name ?? null) : (tenant?.name ?? null);
 
+  // Prefer the editable app_user.full_name; fall back to auth metadata, then email.
+  const appUser = membership?.app_user as { full_name?: string } | { full_name?: string }[] | null | undefined;
+  const dbName = (Array.isArray(appUser) ? appUser[0]?.full_name : appUser?.full_name)?.trim();
+
   return {
     user,
     tenantId: membership?.tenant_id ?? null,
     tenantName,
     role: membership?.role ?? null,
-    userName: displayName(user),
+    userName: dbName || displayName(user),
   };
 });
