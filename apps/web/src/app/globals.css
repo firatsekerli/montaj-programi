@@ -548,14 +548,53 @@ label.checkbox input {
 .btn-ghost:hover {
   border-color: var(--accent);
 }
-.status-select {
-  background: var(--panel-2);
+/* Order status: read-only badge + a block/unblock button. */
+.status-cell {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.5rem;
+}
+.status-cell.busy {
+  opacity: 0.6;
+}
+.status-badge {
+  font-size: 0.78rem;
+  font-weight: 600;
+  padding: 0.15rem 0.55rem;
+  border-radius: 999px;
   border: 1px solid var(--border);
-  border-radius: 6px;
-  padding: 0.3rem 0.4rem;
+  background: var(--panel-2);
+  color: var(--muted);
+  white-space: nowrap;
+}
+.status-badge.status-planned {
+  color: var(--accent);
+  border-color: color-mix(in srgb, var(--accent) 55%, var(--border));
+}
+.status-badge.status-in_progress {
+  color: #e0b34d;
+  border-color: color-mix(in srgb, #e0b34d 55%, var(--border));
+}
+.status-badge.status-completed {
+  color: #7bd88f;
+  border-color: color-mix(in srgb, #2e7d32 60%, var(--border));
+}
+.status-badge.status-blocked {
+  color: #fff;
+  background: var(--danger);
+  border-color: var(--danger);
+}
+.status-block {
+  background: none;
+  border: none;
+  color: var(--muted);
+  font-size: 0.78rem;
+  cursor: pointer;
+  padding: 0;
+  text-decoration: underline;
+}
+.status-block:hover {
   color: var(--text);
-  font: inherit;
-  font-size: 0.85rem;
 }
 
 /* ---- Planning board ---- */

@@ -4,24 +4,25 @@ import { useTransition } from "react";
 import { useTranslations } from "next-intl";
 import { setOrderStatus } from "@/app/actions/orders";
 
-const STATUSES = ["backlog", "planned", "in_progress", "completed", "blocked"] as const;
-
+/**
+ * Order status is auto-derived from the plan and installs, so it's shown as a
+ * read-only badge. The only manual lever is blocking the order out of planning
+ * (or releasing it back), via the button.
+ */
 export function StatusSelect({ orderId, status }: { orderId: string; status: string }) {
   const ts = useTranslations("order.status");
+  const t = useTranslations("orders");
   const [pending, startTransition] = useTransition();
+  const blocked = status === "blocked";
+  const toggle = () =>
+    startTransition(() => setOrderStatus(orderId, blocked ? "backlog" : "blocked"));
 
   return (
-    <select
-      className="status-select"
-      defaultValue={status}
-      disabled={pending}
-      onChange={(e) => startTransition(() => setOrderStatus(orderId, e.target.value))}
-    >
-      {STATUSES.map((s) => (
-        <option key={s} value={s}>
-          {ts(s)}
-        </option>
-      ))}
-    </select>
+    <span className={`status-cell${pending ? " busy" : ""}`}>
+      <span className={`status-badge status-${status}`}>{ts(status)}</span>
+      <button type="button" className="status-block" disabled={pending} onClick={toggle}>
+        {blocked ? t("unblock") : t("block")}
+      </button>
+    </span>
   );
 }

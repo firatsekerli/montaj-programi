@@ -229,6 +229,8 @@
     "demolition": "Kırım/Sökme",
     "requiresDemolition": "Kapı sökme / duvar kırma var mı?",
     "productionConfirmed": "Üretim hazır (tarihe bakılmaksızın planlanabilir)",
+    "block": "Engelle",
+    "unblock": "Geri al",
     "blockedLabel": "Engellendi — planlamaya dahil etme",
     "blockedHelp": "İşaretlenirse bu sipariş planlamaya alınmaz. Diğer durumlar (Bekleyen / Planlandı / Devam ediyor / Tamamlandı) montaj ilerledikçe otomatik belirlenir.",
     "requiresManlift": "Manlift gerekli mi? (endüstriyel kapı için)",
