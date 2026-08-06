@@ -14,6 +14,7 @@
     "people": "Kişiler",
     "assets": "Araçlar ve Ekipman",
     "sites": "Şantiyeler",
+    "audit": "Geçmiş",
     "signOut": "Çıkış Yap"
   },
   "crud": {
@@ -302,6 +303,27 @@
       "deadline_risk": "Teslim riski",
       "shipment": "Sevkiyat",
       "other": "Görev"
+    }
+  },
+  "audit": {
+    "title": "İşlem Geçmişi",
+    "subtitle": "Kim, ne zaman, neyi değiştirdi.",
+    "when": "Zaman",
+    "user": "Kullanıcı",
+    "action": "İşlem",
+    "empty": "Henüz kayıt yok.",
+    "actions": {
+      "order.create": "Sipariş oluşturdu",
+      "order.update": "Siparişi düzenledi",
+      "order.delete": "Siparişi sildi",
+      "order.block": "Siparişi engelledi",
+      "order.unblock": "Sipariş engelini kaldırdı",
+      "assignment.move": "Kartı taşıdı",
+      "assignment.record": "Montaj adedi girdi",
+      "assignment.undo": "Montaj kaydını geri aldı",
+      "plan.generate": "Planı yeniden oluşturdu",
+      "plan.clear": "Planı temizledi",
+      "other": "İşlem"
     }
   },
   "order": {

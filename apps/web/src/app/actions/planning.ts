@@ -13,6 +13,7 @@ import {
   type ScheduleOrder,
 } from "@montaj/rules";
 import { getCurrentContext } from "@/lib/auth";
+import { logAudit } from "@/lib/audit";
 import { districtCenter } from "@/lib/districts";
 import { createSupabaseServerClient } from "@/lib/supabase/server";
 import {
@@ -251,6 +252,7 @@ export async function generatePlan() {
   await syncManliftTransferTasks(supabase, ctx, tenantId, assignments, siteByOrder);
   await syncShipmentTasks(supabase, ctx, tenantId, planId);
   await syncAllOrderStatuses(supabase, tenantId);
+  await logAudit({ action: "plan.generate", entity: "plan", details: { placed: assignments.length } });
 
   revalidatePath("/planning");
   revalidatePath("/notifications");
@@ -691,13 +693,14 @@ export async function moveAssignment(
 
   const { data: a } = await supabase
     .from("assignment")
-    .select("id, plan_id, team_id, assign_date, order_id")
+    .select("id, plan_id, team_id, assign_date, order_id, work_order:order_id(code)")
     .eq("id", assignmentId)
     .single();
   if (!a) throw new Error("Atama bulunamadı.");
   const sourceTeam = a.team_id as string;
   const sourceDate = a.assign_date as string;
   const planId = a.plan_id as string;
+  const orderCode = one<{ code: string }>(a.work_order)?.code ?? null;
 
   // Move + mark manual. Tolerant of a lagging migration (no `manual` column).
   const payload = { team_id: teamId, assign_date: date };
@@ -716,6 +719,13 @@ export async function moveAssignment(
 
   // Pull the production date earlier + notify if this manual move needs it.
   const warning = await reviseProductionForOrder(supabase, ctx, planId, a.order_id as string);
+  await logAudit({
+    action: "assignment.move",
+    entity: "assignment",
+    entityId: assignmentId,
+    label: orderCode,
+    details: { date },
+  });
 
   revalidatePath("/planning");
   revalidatePath("/notifications");
@@ -736,12 +746,13 @@ export async function recordInstalled(assignmentId: string, installed: number) {
   const supabase = await createSupabaseServerClient();
   const { data: a } = await supabase
     .from("assignment")
-    .select("id, tenant_id, units, team_id, assign_date, plan_id, order_id, order_line_id, asset_ids")
+    .select("id, tenant_id, units, team_id, assign_date, plan_id, order_id, order_line_id, asset_ids, work_order:order_id(code)")
     .eq("id", assignmentId)
     .single();
   if (!a) throw new Error("Atama bulunamadı.");
   const units = a.units as number;
   const done = Math.max(0, Math.min(Math.round(installed), units));
+  const orderCode = one<{ code: string }>(a.work_order)?.code ?? null;
 
   if (done <= 0) {
     await supabase.from("assignment").update({ status: "planned" }).eq("id", assignmentId);
@@ -770,6 +781,13 @@ export async function recordInstalled(assignmentId: string, installed: number) {
   const ctx = await buildPlanningContext(supabase);
   await recomputeTeamDay(supabase, ctx, a.plan_id as string, a.team_id as string, a.assign_date as string);
   await syncOrderStatus(supabase, a.order_id as string);
+  await logAudit({
+    action: "assignment.record",
+    entity: "assignment",
+    entityId: assignmentId,
+    label: orderCode,
+    details: { installed: done, of: units },
+  });
   revalidatePath("/planning");
   revalidatePath("/orders");
 }
@@ -783,10 +801,11 @@ export async function undoInstalled(assignmentId: string) {
   const supabase = await createSupabaseServerClient();
   const { data: a } = await supabase
     .from("assignment")
-    .select("id, units, team_id, assign_date, plan_id, order_id, order_line_id")
+    .select("id, units, team_id, assign_date, plan_id, order_id, order_line_id, work_order:order_id(code)")
     .eq("id", assignmentId)
     .single();
   if (!a) throw new Error("Atama bulunamadı.");
+  const orderCode = one<{ code: string }>(a.work_order)?.code ?? null;
 
   // The remainder is the planned sibling of the same order line on this team-day.
   let restored = a.units as number;
@@ -821,6 +840,7 @@ export async function undoInstalled(assignmentId: string) {
   const ctx = await buildPlanningContext(supabase);
   await recomputeTeamDay(supabase, ctx, a.plan_id as string, a.team_id as string, a.assign_date as string);
   await syncOrderStatus(supabase, a.order_id as string);
+  await logAudit({ action: "assignment.undo", entity: "assignment", entityId: assignmentId, label: orderCode });
   revalidatePath("/planning");
   revalidatePath("/orders");
 }
@@ -850,5 +870,6 @@ export async function clearPlan() {
     await supabase.from("assignment").delete().eq("plan_id", plan.id).eq("status", "planned");
     await supabase.from("plan").update({ unplaced: [] }).eq("id", plan.id);
   }
+  await logAudit({ action: "plan.clear", entity: "plan" });
   revalidatePath("/planning");
 }

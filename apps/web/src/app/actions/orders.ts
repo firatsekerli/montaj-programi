@@ -4,6 +4,7 @@ import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
 import type { WorkItemType } from "@montaj/rules";
 import { getCurrentContext } from "@/lib/auth";
+import { logAudit } from "@/lib/audit";
 import { createSupabaseServerClient } from "@/lib/supabase/server";
 import { estimateInstallDays, productionDueDate } from "@/lib/planning";
 
@@ -290,6 +291,7 @@ export async function createOrder(
   }
   await upsertProductionTask(supabase, tenantId, data.id, values.code, productionDue);
   await upsertDeadlineRiskTask(supabase, tenantId, data.id, values.code, tight, values.delivery_date);
+  await logAudit({ action: "order.create", entity: "order", entityId: data.id, label: values.code });
 
   revalidatePath("/orders");
   revalidatePath("/notifications");
@@ -325,6 +327,7 @@ export async function updateOrder(
   await reconcileLines(supabase, tenantId, id, lines);
   await upsertProductionTask(supabase, tenantId, id, values.code, productionDue);
   await upsertDeadlineRiskTask(supabase, tenantId, id, values.code, tight, values.delivery_date);
+  await logAudit({ action: "order.update", entity: "order", entityId: id, label: values.code });
 
   revalidatePath("/orders");
   revalidatePath("/notifications");
@@ -333,19 +336,28 @@ export async function updateOrder(
 
 export async function deleteOrder(id: string) {
   const supabase = await createSupabaseServerClient();
+  const { data: order } = await supabase.from("work_order").select("code").eq("id", id).maybeSingle();
   // assignment.order_id references work_order WITHOUT on-delete-cascade, so its
   // rows would block the delete. Remove the order's assignments first; order_line
   // and task rows cascade on their own.
   await supabase.from("assignment").delete().eq("order_id", id);
   const { error } = await supabase.from("work_order").delete().eq("id", id);
   if (error) throw new Error(error.message);
+  await logAudit({ action: "order.delete", entity: "order", entityId: id, label: order?.code ?? null });
   revalidatePath("/orders");
   revalidatePath("/planning");
 }
 
 export async function setOrderStatus(id: string, status: string) {
   const supabase = await createSupabaseServerClient();
+  const { data: order } = await supabase.from("work_order").select("code").eq("id", id).maybeSingle();
   const { error } = await supabase.from("work_order").update({ status }).eq("id", id);
   if (error) throw new Error(error.message);
+  await logAudit({
+    action: status === "blocked" ? "order.block" : "order.unblock",
+    entity: "order",
+    entityId: id,
+    label: order?.code ?? null,
+  });
   revalidatePath("/orders");
 }
