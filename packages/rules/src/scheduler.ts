@@ -264,21 +264,23 @@ export function schedule(input: ScheduleInput): ScheduleOutput {
       a.orderCode.localeCompare(b.orderCode),
   );
 
-  const firstDay = workingDays[0];
   const lastDay = workingDays[workingDays.length - 1];
 
   for (const order of sorted) {
+    // Days we could still install on, from the earliest (production-ready) date.
+    const future = workingDays.filter((d) => d >= order.earliestDate);
+    if (future.length === 0) {
+      // The earliest date is beyond the whole horizon (production not ready in
+      // time) — the only genuinely unschedulable case.
+      for (const l of order.lines) unplaced.push(u(order, l.orderLineId, l.quantity, "not_ready"));
+      continue;
+    }
+    // On-time window (within the delivery deadline). May be empty when the
+    // deadline has already passed — the late pass below then places it (flagged
+    // "late"/red) instead of dropping it, rather than losing a real pending job.
     const window = workingDays.filter(
       (d) => d >= order.earliestDate && (!order.deliveryDate || d <= order.deliveryDate),
     );
-
-    if (window.length === 0) {
-      const pastDeadline =
-        order.deliveryDate != null && firstDay != null && order.deliveryDate < firstDay;
-      const reason = pastDeadline ? "past_deadline" : "not_ready";
-      for (const l of order.lines) unplaced.push(u(order, l.orderLineId, l.quantity, reason));
-      continue;
-    }
 
     // Split the order's lines by the SET of teams that can install them. Lines
     // handled by the same crews stay together — one team owns them at the site,
@@ -356,11 +358,12 @@ export function schedule(input: ScheduleInput): ScheduleOutput {
       };
 
       fill(window);
-      // Deadline pressure overflow: place the remainder on LATER days (past the
-      // deadline) instead of dropping it. These land after order.deliveryDate and
-      // are flagged "late" on the board — better a late plan than a missing job.
+      // Deadline overflow / already-past deadline: place the remainder on the
+      // remaining future days instead of dropping it. These land after
+      // order.deliveryDate and are flagged "late" (red) on the board — better a
+      // late plan than a missing job.
       if (order.deliveryDate && [...remaining.values()].some((r) => r > 0)) {
-        fill(workingDays.filter((d) => d >= order.earliestDate));
+        fill(future);
       }
 
       // Anything still remaining means the whole horizon is full for this group.
@@ -371,7 +374,7 @@ export function schedule(input: ScheduleInput): ScheduleOutput {
     }
   }
 
-  // `lastDay` is captured for symmetry with firstDay; keep referenced.
+  // `lastDay` is captured for potential horizon checks; keep referenced.
   void lastDay;
   return { assignments, unplaced };
 }

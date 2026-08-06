@@ -234,6 +234,39 @@ describe("delivery-driven scheduler", () => {
     expect(assignments.some((a) => a.date > week1End)).toBe(true);
   });
 
+  it("places an already-past-deadline order late instead of dropping it", () => {
+    // Deadline is before the whole horizon (it has passed). The job is still real,
+    // so it's placed late (flagged red) rather than dropped as unplaced.
+    const { assignments, unplaced } = schedule({
+      workingDays: HORIZON,
+      shift: dimakShift,
+      rules: dimakRules,
+      teams: [team()],
+      orders: [
+        order({
+          lines: [{ orderLineId: "l1", type: fullFrameSingleFire, quantity: 6, facts: {} }],
+          earliestDate: HORIZON[0]!,
+          deliveryDate: "2026-01-01", // before HORIZON[0] — already overdue
+        }),
+      ],
+    });
+    expect(assignments.reduce((s, a) => s + a.units, 0)).toBe(6);
+    expect(unplaced).toHaveLength(0);
+    expect(assignments.every((a) => a.date > "2026-01-01")).toBe(true);
+  });
+
+  it("marks an order not_ready when its earliest date is beyond the horizon", () => {
+    const { assignments, unplaced } = schedule({
+      workingDays: HORIZON,
+      shift: dimakShift,
+      rules: dimakRules,
+      teams: [team()],
+      orders: [order({ earliestDate: "2027-01-01", deliveryDate: "2027-02-01" })],
+    });
+    expect(assignments).toHaveLength(0);
+    expect(unplaced[0]?.reason).toBe("not_ready");
+  });
+
   it("flags orders that can't finish by their deadline", () => {
     // 100 doors due in one week; even 1 team over 5 days = 35 → rest unplaced.
     const week1 = HORIZON.slice(0, 5);
