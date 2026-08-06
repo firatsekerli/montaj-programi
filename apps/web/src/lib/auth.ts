@@ -7,6 +7,16 @@ export interface CurrentContext {
   tenantId: string | null;
   tenantName: string | null;
   role: string | null;
+  /** Display name of the signed-in user (from metadata, else email). */
+  userName: string | null;
+}
+
+/** The signed-in user's display name: full_name metadata, else the email local part. */
+function displayName(user: User | null): string | null {
+  if (!user) return null;
+  const full = (user.user_metadata?.full_name as string | undefined)?.trim();
+  if (full) return full;
+  return user.email ?? null;
 }
 
 /**
@@ -37,7 +47,7 @@ export const getCurrentContext = cache(async (): Promise<CurrentContext> => {
   } = await supabase.auth.getSession();
   const user = session?.user ?? null;
 
-  if (!user) return { user: null, tenantId: null, tenantName: null, role: null };
+  if (!user) return { user: null, tenantId: null, tenantName: null, role: null, userName: null };
 
   const { data: membership } = await supabase
     .from("membership")
@@ -53,5 +63,6 @@ export const getCurrentContext = cache(async (): Promise<CurrentContext> => {
     tenantId: membership?.tenant_id ?? null,
     tenantName,
     role: membership?.role ?? null,
+    userName: displayName(user),
   };
 });

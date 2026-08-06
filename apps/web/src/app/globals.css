@@ -85,6 +85,10 @@ h2 {
   color: var(--muted);
   font-size: 0.85rem;
 }
+.brand .brand-user {
+  color: var(--accent);
+  font-weight: 600;
+}
 .sidebar nav {
   display: flex;
   flex-direction: column;

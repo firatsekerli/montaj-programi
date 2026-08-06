@@ -10,8 +10,13 @@ import { signOut } from "@/app/actions/auth";
  * its DB round-trip streams into the sidebar without blocking the page content.
  */
 async function TenantName() {
-  const { tenantName } = await getCurrentContext();
-  return <span className="tenant">{tenantName ?? "—"}</span>;
+  const { tenantName, userName } = await getCurrentContext();
+  return (
+    <span className="tenant">
+      {tenantName ?? "—"}
+      {userName && <span className="brand-user"> · {userName}</span>}
+    </span>
+  );
 }
 
 export default async function AppLayout({ children }: { children: ReactNode }) {
