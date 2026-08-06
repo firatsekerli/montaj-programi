@@ -19,8 +19,6 @@ interface Line {
   quantity: number;
 }
 
-const STATUSES = ["backlog", "planned", "in_progress", "completed", "blocked"] as const;
-
 export function OrderForm({
   action,
   types,
@@ -45,7 +43,6 @@ export function OrderForm({
   submitLabel: string;
 }) {
   const t = useTranslations("orders");
-  const ts = useTranslations("order.status");
   const tc = useTranslations("crud");
   const [lines, setLines] = useState<Line[]>(
     defaults.lines && defaults.lines.length
@@ -119,16 +116,15 @@ export function OrderForm({
         <p className="note">{t("productionDueInfo", { date: defaults.productionDue })}</p>
       )}
 
-      <label>
-        {t("status")}
-        <select name="status" defaultValue={defaults.status ?? "backlog"}>
-          {STATUSES.map((s) => (
-            <option key={s} value={s}>
-              {ts(s)}
-            </option>
-          ))}
-        </select>
+      {/* Status is auto-derived (Bekleyen → Planlandı → Devam ediyor → Tamamlandı)
+          from the plan and installs. The only manual lever is blocking the order
+          out of planning. `current_status` preserves the auto value on save. */}
+      <input type="hidden" name="current_status" value={defaults.status ?? "backlog"} />
+      <label className="checkbox">
+        <input type="checkbox" name="blocked" defaultChecked={defaults.status === "blocked"} />
+        {t("blockedLabel")}
       </label>
+      <span className="help">{t("blockedHelp")}</span>
 
       <label className="checkbox">
         <input

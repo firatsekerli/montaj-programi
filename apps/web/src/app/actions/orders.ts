@@ -27,8 +27,20 @@ function parse(formData: FormData) {
     // resource-requiring line; for other orders it's absent and this is false,
     // which is harmless (those lines don't reserve a resource anyway).
     requires_resource: formData.get("requires_resource") === "on",
-    status: String(formData.get("status") ?? "backlog"),
+    status: resolveStatus(formData),
   };
+}
+
+/**
+ * Status is auto-derived from the plan/installs; the form only exposes a "block"
+ * toggle. Blocking → 'blocked'; unblocking a previously-blocked order → 'backlog'
+ * (so it re-enters planning); otherwise keep the current auto value untouched.
+ */
+function resolveStatus(formData: FormData): string {
+  const blocked = formData.get("blocked") === "on";
+  const current = String(formData.get("current_status") ?? "backlog");
+  if (blocked) return "blocked";
+  return current === "blocked" ? "backlog" : current;
 }
 
 function parseLines(formData: FormData): LineInput[] {
