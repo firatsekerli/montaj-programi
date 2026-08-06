@@ -311,7 +311,11 @@ function Card({
   onUndo: (id: string) => void;
 }) {
   const t = useTranslations("planning");
-  const { attributes, listeners, setNodeRef, transform, isDragging } = useDraggable({ id: a.id });
+  // Completed (installed) cards are locked — no drag, no move panel.
+  const { attributes, listeners, setNodeRef, transform, isDragging } = useDraggable({
+    id: a.id,
+    disabled: a.status === "completed",
+  });
   const [editing, setEditing] = useState(false);
   const [recording, setRecording] = useState(false);
   const [team, setTeam] = useState(a.teamId);
