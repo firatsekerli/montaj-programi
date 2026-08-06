@@ -867,7 +867,28 @@ export async function clearPlan() {
     .limit(1)
     .maybeSingle();
   if (plan) {
-    await supabase.from("assignment").delete().eq("plan_id", plan.id).eq("status", "planned");
+    // Clear only the AUTO-planned cards. Keep installed/started work (status is
+    // not 'planned') and any manually-pinned cards (manual = true). Tolerant of a
+    // lagging migration: if `manual` is absent, fall back to clearing all planned.
+    const withManual = await supabase
+      .from("assignment")
+      .select("id, manual")
+      .eq("plan_id", plan.id)
+      .eq("status", "planned");
+    let deleteIds: string[];
+    if (withManual.error) {
+      const res = await supabase
+        .from("assignment")
+        .select("id")
+        .eq("plan_id", plan.id)
+        .eq("status", "planned");
+      deleteIds = ((res.data ?? []) as Array<{ id: string }>).map((r) => r.id);
+    } else {
+      deleteIds = ((withManual.data ?? []) as Array<{ id: string; manual: boolean | null }>)
+        .filter((r) => r.manual !== true)
+        .map((r) => r.id);
+    }
+    if (deleteIds.length) await supabase.from("assignment").delete().in("id", deleteIds);
     await supabase.from("plan").update({ unplaced: [] }).eq("id", plan.id);
   }
   await logAudit({ action: "plan.clear", entity: "plan" });
