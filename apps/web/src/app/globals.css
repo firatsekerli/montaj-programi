@@ -701,6 +701,8 @@ label.checkbox input {
   --wk-narrow: 40px;
   /* Team-name column — narrow; the name wraps ("KAZIM" / "Ekibi"). */
   --team-col: 62px;
+  /* Minimum day-column width (overridden to 0 for print so all days fit A4). */
+  --day-min: 150px;
 }
 .board-cell {
   background: var(--panel);
@@ -1287,4 +1289,161 @@ button.task-filter.active {
   font-size: 0.72rem;
   font-weight: 600;
   color: var(--muted);
+}
+
+/* Header action group (print + generate). */
+.head-actions {
+  display: flex;
+  align-items: center;
+  gap: 0.6rem;
+}
+
+/* ---- Print: A4 landscape for the weekly board & monthly calendar ---------- */
+@media print {
+  @page {
+    size: A4 landscape;
+    margin: 8mm;
+  }
+  /* Light everything so it prints clean, and force backgrounds/borders. */
+  * {
+    -webkit-print-color-adjust: exact !important;
+    print-color-adjust: exact !important;
+  }
+  html,
+  body {
+    background: #fff !important;
+    color: #000 !important;
+  }
+  .no-print,
+  .sidebar,
+  .board-topscroll,
+  .plan-controls,
+  .week-nav a,
+  .card-actions,
+  .card-action,
+  button.pin,
+  .status-block,
+  .cal-nav {
+    display: none !important;
+  }
+  .shell {
+    display: block !important;
+    min-height: 0 !important;
+  }
+  .content {
+    padding: 0 !important;
+  }
+  main {
+    width: 100% !important;
+  }
+  h1 {
+    font-size: 14pt !important;
+    margin: 0 0 4pt !important;
+  }
+  .page-head {
+    margin-bottom: 4pt;
+  }
+  .week-nav {
+    justify-content: center;
+    margin: 0 0 4pt;
+  }
+  .panel {
+    background: #fff !important;
+    border: none !important;
+    padding: 0 !important;
+    box-shadow: none !important;
+  }
+
+  /* Board fits the page: no scroll, all days, columns shrink to fit. */
+  .board-scroll {
+    overflow: visible !important;
+    max-height: none !important;
+  }
+  .board {
+    min-width: 0 !important;
+    width: 100% !important;
+    --day-min: 0 !important;
+    --team-col: 20mm !important;
+    --wk-narrow: 6mm !important;
+    background: #999 !important; /* grid gap lines */
+    border-color: #999 !important;
+  }
+  .board-cell {
+    background: #fff !important;
+    color: #000 !important;
+    min-height: 0 !important;
+    padding: 2pt 3pt !important;
+  }
+  .board-cell.head,
+  .board-cell.team-col {
+    background: #eee !important;
+    position: static !important;
+    box-shadow: none !important;
+    font-size: 8pt !important;
+  }
+  .board-cell.weekend {
+    background: #f4f4f4 !important;
+  }
+  .usage {
+    margin-bottom: 1pt !important;
+  }
+  .usage-pct {
+    color: #333 !important;
+  }
+  .usage-bar {
+    background: #888 !important;
+  }
+  .usage-bar.over-cap {
+    background: #c00 !important;
+  }
+  .card-plan {
+    background: #fff !important;
+    color: #000 !important;
+    border: 1px solid #999 !important;
+    font-size: 7.5pt !important;
+    padding: 2pt 3pt !important;
+    break-inside: avoid;
+  }
+  .card-plan.late {
+    border-color: #c00 !important;
+    background: #fdecec !important;
+  }
+  .card-plan.done {
+    border-color: #2e7d32 !important;
+    background: #eef7ee !important;
+  }
+  .card-plan .card-line,
+  .card-plan .card-cost {
+    color: #000 !important;
+  }
+
+  /* Month calendar fits one landscape page. */
+  .cal-cell {
+    background: #fff !important;
+    color: #000 !important;
+    border: 1px solid #999 !important;
+    min-height: 20mm !important;
+  }
+  .cal-cell.out {
+    opacity: 1 !important;
+    background: #f4f4f4 !important;
+  }
+  .cal-dow {
+    color: #000 !important;
+  }
+  .cal-day {
+    color: #000 !important;
+  }
+  .cal-chip {
+    background: #eee !important;
+    border-color: #bbb !important;
+    color: #000 !important;
+  }
+  .cal-chip-units,
+  .cal-more {
+    color: #333 !important;
+  }
+  .cal-head {
+    justify-content: center;
+  }
 }

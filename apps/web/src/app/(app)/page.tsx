@@ -3,6 +3,7 @@ import { dailyCapacity, type ShiftContext, type WorkItemType } from "@montaj/rul
 import { createSupabaseServerClient } from "@/lib/supabase/server";
 import { one } from "@/lib/rel";
 import { addMonths, firstOfMonth, monthGrid } from "@/lib/planning";
+import { PrintButton } from "./PrintButton";
 import { MonthCalendar, type CalDay, type CalItem } from "./MonthCalendar";
 
 interface WitRow {
@@ -97,10 +98,13 @@ export default async function DashboardPage({
 
   return (
     <main>
-      <h1>{t("title")}</h1>
-      <p className="subtitle">{t("subtitle")}</p>
+      <div className="page-head">
+        <h1>{t("title")}</h1>
+        <PrintButton />
+      </div>
+      <p className="subtitle no-print">{t("subtitle")}</p>
 
-      <section className="stats">
+      <section className="stats no-print">
         {stats.map((s) => (
           <div key={s.label} className="stat">
             <div className="stat-value">{s.value}</div>
@@ -116,7 +120,7 @@ export default async function DashboardPage({
         nextHref={`/?month=${addMonths(monthISO, 1)}`}
       />
 
-      <section className="panel">
+      <section className="panel no-print">
         <h2>{t("capacityDemoTitle")}</h2>
         <p className="note">{t("capacityDemoNote")}</p>
         <table>
