@@ -516,67 +516,63 @@ function Card({
             📌
           </button>
         )}
-        {!bulkMode && !doneCard && (
-          <span className="card-actions">
-            <button
-              type="button"
-              className={`card-action note${notes.length ? " has-notes" : ""}`}
-              title={t("notesTitle")}
-              onPointerDown={stop}
-              onClick={(e) => {
-                stop(e);
-                setNotesOpen(true);
-              }}
-            >
-              📝 {t("notesTitle")}
-              {notes.length > 0 && <span className="note-count">{notes.length}</span>}
-            </button>
-            <button
-              type="button"
-              className="card-action"
-              title={t("moveTitle")}
-              onPointerDown={stop}
-              onClick={(e) => {
-                stop(e);
-                setTeam(a.teamId);
-                setDate(a.date);
-                setEditing((v) => !v);
-                setRecording(false);
-              }}
-            >
-              {t("move")}
-            </button>
-            <button
-              type="button"
-              className="card-action record"
-              title={t("recordTitle")}
-              onPointerDown={stop}
-              onClick={(e) => {
-                stop(e);
-                setInstalled(a.units);
-                setRecording((v) => !v);
-                setEditing(false);
-              }}
-            >
-              {t("recordChip")}
-            </button>
-          </span>
-        )}
-        {!bulkMode && doneCard && (
-          <span className="card-actions">
-            <button
-              type="button"
-              className={`card-action note${notes.length ? " has-notes" : ""}`}
-              title={t("notesTitle")}
-              onPointerDown={stop}
-              onClick={(e) => {
-                stop(e);
-                setNotesOpen(true);
-              }}
-            >
-              📝 {t("notesTitle")}
-              {notes.length > 0 && <span className="note-count">{notes.length}</span>}
-            </button>
+      </strong>
+      <span className="card-line">
+        {a.units}× {a.typeName}
+      </span>
+      <span className="card-cost">
+        {doneCard ? t("installedDone", { n: a.units }) : t("dayShare", { pct: Math.round(a.cost * 100) })}
+      </span>
+
+      {!bulkMode && (
+        <div className="card-foot" onPointerDown={stop}>
+          <button
+            type="button"
+            className={`card-action note${notes.length ? " has-notes" : ""}`}
+            title={t("notesTitle")}
+            onPointerDown={stop}
+            onClick={(e) => {
+              stop(e);
+              setNotesOpen(true);
+            }}
+          >
+            📝 {t("notesTitle")}
+            {notes.length > 0 && <span className="note-count">{notes.length}</span>}
+          </button>
+          {!doneCard && (
+            <>
+              <button
+                type="button"
+                className="card-action"
+                title={t("moveTitle")}
+                onPointerDown={stop}
+                onClick={(e) => {
+                  stop(e);
+                  setTeam(a.teamId);
+                  setDate(a.date);
+                  setEditing((v) => !v);
+                  setRecording(false);
+                }}
+              >
+                {t("move")}
+              </button>
+              <button
+                type="button"
+                className="card-action record"
+                title={t("recordTitle")}
+                onPointerDown={stop}
+                onClick={(e) => {
+                  stop(e);
+                  setInstalled(a.units);
+                  setRecording((v) => !v);
+                  setEditing(false);
+                }}
+              >
+                {t("recordChip")}
+              </button>
+            </>
+          )}
+          {doneCard && (
             <button
               type="button"
               className="card-action undo"
@@ -589,15 +585,9 @@ function Card({
             >
               {t("undo")}
             </button>
-          </span>
-        )}
-      </strong>
-      <span className="card-line">
-        {a.units}× {a.typeName}
-      </span>
-      <span className="card-cost">
-        {doneCard ? t("installedDone", { n: a.units }) : t("dayShare", { pct: Math.round(a.cost * 100) })}
-      </span>
+          )}
+        </div>
+      )}
 
       {editing && (
         <div className="card-move-panel" onPointerDown={stop}>

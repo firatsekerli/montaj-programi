@@ -956,17 +956,23 @@ button.pin:hover {
   opacity: 1;
   filter: brightness(1.2);
 }
-/* Order-code line: title on the left, action chips pushed to the right. */
+/* Order-code line: just the title, badges and pin — no action chips (those
+   live in the footer bar below, keeping the header clean). */
 .card-plan > strong {
   display: flex;
   align-items: center;
   flex-wrap: wrap;
   gap: 0.25rem;
 }
-.card-actions {
-  margin-inline-start: auto;
-  display: inline-flex;
+/* Action bar pinned to the bottom of the card, separated from the content by a
+   hairline so the buttons never crowd the title. */
+.card-foot {
+  display: flex;
+  flex-wrap: wrap;
   gap: 0.25rem;
+  margin-top: 0.35rem;
+  padding-top: 0.35rem;
+  border-top: 1px solid color-mix(in srgb, var(--border) 70%, transparent);
 }
 button.card-action {
   padding: 0.05rem 0.35rem;
@@ -1457,7 +1463,7 @@ button.notes-close:hover {
   .board-topscroll,
   .plan-controls,
   .week-nav a,
-  .card-actions,
+  .card-foot,
   .card-action,
   button.pin,
   .status-block,
