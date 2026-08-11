@@ -283,6 +283,15 @@ export function datesBetween(fromISO: string, toISO: string, maxDays = 400): str
   return out;
 }
 
+/** The first working day strictly AFTER `dateISO`. */
+export function nextWorkingDay(dateISO: string, workingWeekdays: number[]): string {
+  const d = new Date(`${dateISO}T00:00:00Z`);
+  do {
+    d.setUTCDate(d.getUTCDate() + 1);
+  } while (!isWorking(d, workingWeekdays));
+  return iso(d);
+}
+
 /** The working day that is `n` working days before `dateISO` (n ≥ 0). */
 export function subtractWorkingDays(dateISO: string, n: number, workingWeekdays: number[]): string {
   const d = new Date(`${dateISO}T00:00:00Z`);

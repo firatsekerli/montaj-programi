@@ -20,6 +20,7 @@ import {
   buildPlanningContext,
   horizonWorkingDays,
   lineFacts,
+  nextWorkingDay,
   subtractWorkingDays,
   type PlanningContext,
 } from "@/lib/planning";
@@ -763,22 +764,32 @@ export async function recordInstalled(assignmentId: string, installed: number) {
   }
 
   await supabase.from("assignment").update({ units: done, status: "completed" }).eq("id", assignmentId);
-  // Partial install: leave the shortfall as a planned sibling on the same day.
-  if (done < units) {
-    await supabase.from("assignment").insert({
+  const ctx = await buildPlanningContext(supabase);
+
+  // Partial install: the same job continues the NEXT working day. Pin the
+  // shortfall to that day on the same team (manual, so it stays there), then
+  // re-plan so the following work shifts around it.
+  const partial = done < units;
+  if (partial) {
+    const nextDay = nextWorkingDay(a.assign_date as string, ctx.calendar.workingWeekdays);
+    const remainderRow = {
       tenant_id: a.tenant_id,
       plan_id: a.plan_id,
-      assign_date: a.assign_date,
+      assign_date: nextDay,
       team_id: a.team_id,
       order_id: a.order_id,
       order_line_id: a.order_line_id,
       units: units - done,
       asset_ids: a.asset_ids ?? [],
       status: "planned",
-    });
+    };
+    // Pin it (manual) so the continuation stays on the next day. Tolerant of a
+    // lagging `manual` column.
+    let ins = await supabase.from("assignment").insert({ ...remainderRow, manual: true });
+    if (ins.error) ins = await supabase.from("assignment").insert(remainderRow);
+    await recomputeTeamDay(supabase, ctx, a.plan_id as string, a.team_id as string, nextDay);
   }
-  // Re-cost just this team-day so both cards' fill is consistent — nothing else.
-  const ctx = await buildPlanningContext(supabase);
+  // Re-cost the completed day so its fill reflects the installed count.
   await recomputeTeamDay(supabase, ctx, a.plan_id as string, a.team_id as string, a.assign_date as string);
   await syncOrderStatus(supabase, a.order_id as string);
   await logAudit({
@@ -788,8 +799,13 @@ export async function recordInstalled(assignmentId: string, installed: number) {
     label: orderCode,
     details: { installed: done, of: units },
   });
-  revalidatePath("/planning");
-  revalidatePath("/orders");
+  // Shift the rest of the plan around the completed + pinned continuation cards.
+  if (partial) {
+    await generatePlan();
+  } else {
+    revalidatePath("/planning");
+    revalidatePath("/orders");
+  }
 }
 
 /**
@@ -807,7 +823,9 @@ export async function undoInstalled(assignmentId: string) {
   if (!a) throw new Error("Atama bulunamadı.");
   const orderCode = one<{ code: string }>(a.work_order)?.code ?? null;
 
-  // The remainder is the planned sibling of the same order line on this team-day.
+  // Merge back every planned piece of the same order line on this team — the
+  // split-off continuation (which record pins to the next day) plus any same-day
+  // remainder — into this card, so undo restores the single original card.
   let restored = a.units as number;
   if (a.order_line_id) {
     const { data: sibs } = await supabase
@@ -815,7 +833,6 @@ export async function undoInstalled(assignmentId: string) {
       .select("id, units")
       .eq("plan_id", a.plan_id as string)
       .eq("team_id", a.team_id as string)
-      .eq("assign_date", a.assign_date as string)
       .eq("order_line_id", a.order_line_id as string)
       .eq("status", "planned")
       .neq("id", assignmentId);
