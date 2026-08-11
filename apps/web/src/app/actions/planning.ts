@@ -792,7 +792,11 @@ export async function bulkMove(ids: string[], teamId: string, date: string) {
  *     next "Yeniden Oluştur", to auto-place). undoInstalled reverses exactly this.
  *   • installed ≤ 0 → the card is left planned, untouched.
  */
-export async function recordInstalled(assignmentId: string, installed: number) {
+export async function recordInstalled(
+  assignmentId: string,
+  installed: number,
+  installerIds: string[] = [],
+) {
   const supabase = await createSupabaseServerClient();
   const { data: a } = await supabase
     .from("assignment")
@@ -812,7 +816,21 @@ export async function recordInstalled(assignmentId: string, installed: number) {
     return;
   }
 
-  await supabase.from("assignment").update({ units: done, status: "completed" }).eq("id", assignmentId);
+  // Store who installed (empty = the assigned team). Tolerant of a lagging column.
+  const installers = (installerIds ?? []).filter(Boolean);
+  let upd = await supabase
+    .from("assignment")
+    .update({ units: done, status: "completed", installer_ids: installers })
+    .eq("id", assignmentId);
+  if (upd.error) {
+    await supabase.from("assignment").update({ units: done, status: "completed" }).eq("id", assignmentId);
+  }
+  // Resolve installer names for the audit trail.
+  let installerNames: string[] = [];
+  if (installers.length) {
+    const { data: ppl } = await supabase.from("person").select("id, name").in("id", installers);
+    installerNames = (ppl ?? []).map((p) => p.name as string);
+  }
   const ctx = await buildPlanningContext(supabase);
 
   // Partial install: the same job continues the NEXT working day. Pin the
@@ -846,7 +864,7 @@ export async function recordInstalled(assignmentId: string, installed: number) {
     entity: "assignment",
     entityId: assignmentId,
     label: orderCode,
-    details: { installed: done, of: units },
+    details: { installed: done, of: units, installers: installerNames },
   });
   // Shift the rest of the plan around the completed + pinned continuation cards.
   if (partial) {

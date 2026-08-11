@@ -1487,3 +1487,32 @@ button.task-filter.active {
   vertical-align: middle;
   pointer-events: none;
 }
+
+/* Installer multiselect inside the record panel. */
+.installer-picker {
+  display: flex;
+  flex-direction: column;
+  gap: 0.25rem;
+}
+.installer-list {
+  display: flex;
+  flex-direction: column;
+  gap: 0.15rem;
+  max-height: 132px;
+  overflow-y: auto;
+  padding: 0.3rem 0.35rem;
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  background: var(--panel);
+}
+.installer-opt {
+  display: flex;
+  align-items: center;
+  gap: 0.35rem;
+  font-size: 0.75rem;
+  color: var(--text);
+  cursor: pointer;
+}
+.installer-opt input {
+  accent-color: var(--accent);
+}

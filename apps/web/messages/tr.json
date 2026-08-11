@@ -274,6 +274,8 @@
     "recordTitle": "Takılan adedi gir — kalan yeniden planlanır",
     "recordChip": "Takılanı gir",
     "installed": "Takılan adet",
+    "installers": "Takan kişiler",
+    "installersHelp": "Bu kapıları ekip dışında farklı kişiler taktıysa seçin. Boş bırakırsanız ekibin taktığı varsayılır.",
     "installedDone": "{n} takıldı",
     "undo": "Geri al",
     "undoTitle": "Takılan kaydını geri al — sipariş yeniden planlanır",

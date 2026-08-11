@@ -48,12 +48,14 @@ export default async function AuditPage() {
                 of?: number;
                 date?: string;
                 count?: number;
+                installers?: string[];
               };
               const fmtDate = (iso: string) =>
                 format.dateTime(new Date(`${iso}T00:00:00`), { dateStyle: "medium" });
+              const who = d.installers && d.installers.length ? ` · Takan: ${d.installers.join(", ")}` : "";
               const extra =
                 d.installed != null && d.of != null
-                  ? ` (${d.installed}/${d.of})`
+                  ? ` (${d.installed}/${d.of})${who}`
                   : d.count != null && d.date
                     ? ` (${d.count} iş → ${fmtDate(d.date)})`
                     : d.date

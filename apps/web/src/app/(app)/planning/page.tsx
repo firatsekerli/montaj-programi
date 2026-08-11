@@ -48,6 +48,8 @@ export default async function PlanningPage({
   const teams = ((teamsRes.data ?? []) as Array<{ id: string; name: string; kind?: string }>).filter(
     (t) => (t.kind ?? "install") !== "shipping",
   );
+  const { data: peopleRows } = await supabase.from("person").select("id, name").order("name");
+  const people = (peopleRows ?? []) as Array<{ id: string; name: string }>;
   const { data: plan } = await supabase.from("plan").select("id, unplaced").limit(1).maybeSingle();
 
   const unplaced: Unplaced[] = (plan?.unplaced as Unplaced[] | undefined) ?? [];
@@ -108,7 +110,7 @@ export default async function PlanningPage({
       {(teams ?? []).length === 0 ? (
         <p className="note">{t("noTeams")}</p>
       ) : (
-        <PlanningBoard teams={teams ?? []} weekDays={weekDays} assignments={assignments} />
+        <PlanningBoard teams={teams ?? []} people={people} weekDays={weekDays} assignments={assignments} />
       )}
 
       {unplaced.length > 0 && (

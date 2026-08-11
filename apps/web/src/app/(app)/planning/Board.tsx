@@ -39,6 +39,10 @@ interface TeamRow {
   id: string;
   name: string;
 }
+interface PersonRow {
+  id: string;
+  name: string;
+}
 
 /** Monday (UTC) of the week containing an ISO date. */
 function mondayOfISO(iso: string): string {
@@ -55,10 +59,12 @@ function isWeekend(iso: string): boolean {
 
 export function PlanningBoard({
   teams,
+  people,
   weekDays,
   assignments,
 }: {
   teams: TeamRow[];
+  people: PersonRow[];
   weekDays: string[];
   assignments: BoardAssignment[];
 }) {
@@ -145,9 +151,9 @@ export function PlanningBoard({
     });
   }
 
-  function onRecord(id: string, installed: number) {
+  function onRecord(id: string, installed: number, installerIds: string[]) {
     startTransition(async () => {
-      await recordInstalled(id, installed);
+      await recordInstalled(id, installed, installerIds);
       router.refresh();
     });
   }
@@ -255,6 +261,7 @@ export function PlanningBoard({
               key={team.id}
               team={team}
               teams={teams}
+              people={people}
               weekDays={weekDays}
               narrowDays={narrowDays}
               items={items}
@@ -276,6 +283,7 @@ export function PlanningBoard({
 function BoardRow({
   team,
   teams,
+  people,
   weekDays,
   narrowDays,
   items,
@@ -289,12 +297,13 @@ function BoardRow({
 }: {
   team: TeamRow;
   teams: TeamRow[];
+  people: PersonRow[];
   weekDays: string[];
   narrowDays: Set<string>;
   items: BoardAssignment[];
   onUnpin: (id: string) => void;
   onMove: (id: string, teamId: string, date: string) => void;
-  onRecord: (id: string, installed: number) => void;
+  onRecord: (id: string, installed: number, installerIds: string[]) => void;
   onUndo: (id: string) => void;
   bulkMode: boolean;
   selected: Set<string>;
@@ -313,6 +322,7 @@ function BoardRow({
             usage={usage}
             cards={cell}
             teams={teams}
+            people={people}
             weekend={isWeekend(d)}
             narrow={narrowDays.has(d)}
             onUnpin={onUnpin}
@@ -334,6 +344,7 @@ function Cell({
   usage,
   cards,
   teams,
+  people,
   weekend,
   narrow,
   onUnpin,
@@ -348,11 +359,12 @@ function Cell({
   usage: number;
   cards: BoardAssignment[];
   teams: TeamRow[];
+  people: PersonRow[];
   weekend: boolean;
   narrow: boolean;
   onUnpin: (id: string) => void;
   onMove: (id: string, teamId: string, date: string) => void;
-  onRecord: (id: string, installed: number) => void;
+  onRecord: (id: string, installed: number, installerIds: string[]) => void;
   onUndo: (id: string) => void;
   bulkMode: boolean;
   selected: Set<string>;
@@ -379,6 +391,7 @@ function Cell({
           key={c.id}
           a={c}
           teams={teams}
+          people={people}
           onUnpin={onUnpin}
           onMove={onMove}
           onRecord={onRecord}
@@ -395,6 +408,7 @@ function Cell({
 function Card({
   a,
   teams,
+  people,
   onUnpin,
   onMove,
   onRecord,
@@ -405,9 +419,10 @@ function Card({
 }: {
   a: BoardAssignment;
   teams: TeamRow[];
+  people: PersonRow[];
   onUnpin: (id: string) => void;
   onMove: (id: string, teamId: string, date: string) => void;
-  onRecord: (id: string, installed: number) => void;
+  onRecord: (id: string, installed: number, installerIds: string[]) => void;
   onUndo: (id: string) => void;
   bulkMode: boolean;
   selected: boolean;
@@ -426,6 +441,14 @@ function Card({
   const [team, setTeam] = useState(a.teamId);
   const [date, setDate] = useState(a.date);
   const [installed, setInstalled] = useState(a.units);
+  const [installers, setInstallers] = useState<Set<string>>(new Set());
+  const toggleInstaller = (id: string) =>
+    setInstallers((prev) => {
+      const n = new Set(prev);
+      if (n.has(id)) n.delete(id);
+      else n.add(id);
+      return n;
+    });
   const stop = (e: React.SyntheticEvent) => e.stopPropagation();
   const style = transform
     ? { transform: `translate(${transform.x}px, ${transform.y}px)`, zIndex: 20 }
@@ -565,13 +588,31 @@ function Card({
               onChange={(e) => setInstalled(Number(e.target.value))}
             />
           </label>
+          {people.length > 0 && (
+            <div className="installer-picker">
+              <span className="card-record-label">{t("installers")}</span>
+              <div className="installer-list">
+                {people.map((p) => (
+                  <label key={p.id} className="installer-opt">
+                    <input
+                      type="checkbox"
+                      checked={installers.has(p.id)}
+                      onChange={() => toggleInstaller(p.id)}
+                    />
+                    {p.name}
+                  </label>
+                ))}
+              </div>
+              <span className="help">{t("installersHelp")}</span>
+            </div>
+          )}
           <button
             type="button"
             className="btn-ghost"
             onClick={(e) => {
               stop(e);
               setRecording(false);
-              onRecord(a.id, installed);
+              onRecord(a.id, installed, [...installers]);
             }}
           >
             {t("save")}
