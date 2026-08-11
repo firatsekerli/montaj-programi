@@ -516,22 +516,21 @@ function Card({
             📌
           </button>
         )}
-        {!bulkMode && (
-          <button
-            type="button"
-            className={`card-note-btn${notes.length ? " has-notes" : ""}`}
-            title={t("notesTitle")}
-            onPointerDown={stop}
-            onClick={(e) => {
-              stop(e);
-              setNotesOpen(true);
-            }}
-          >
-            📝{notes.length > 0 && <span className="note-count">{notes.length}</span>}
-          </button>
-        )}
         {!bulkMode && !doneCard && (
           <span className="card-actions">
+            <button
+              type="button"
+              className={`card-action note${notes.length ? " has-notes" : ""}`}
+              title={t("notesTitle")}
+              onPointerDown={stop}
+              onClick={(e) => {
+                stop(e);
+                setNotesOpen(true);
+              }}
+            >
+              📝 {t("notesTitle")}
+              {notes.length > 0 && <span className="note-count">{notes.length}</span>}
+            </button>
             <button
               type="button"
               className="card-action"
@@ -565,6 +564,19 @@ function Card({
         )}
         {!bulkMode && doneCard && (
           <span className="card-actions">
+            <button
+              type="button"
+              className={`card-action note${notes.length ? " has-notes" : ""}`}
+              title={t("notesTitle")}
+              onPointerDown={stop}
+              onClick={(e) => {
+                stop(e);
+                setNotesOpen(true);
+              }}
+            >
+              📝 {t("notesTitle")}
+              {notes.length > 0 && <span className="note-count">{notes.length}</span>}
+            </button>
             <button
               type="button"
               className="card-action undo"
