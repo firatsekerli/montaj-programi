@@ -1331,6 +1331,115 @@ button.task-filter.active {
   gap: 0.5rem;
 }
 
+/* ---- Card notes: button + modal ------------------------------------------ */
+button.card-note-btn {
+  margin-inline-start: 0.25rem;
+  padding: 0 0.2rem;
+  font-size: 0.72rem;
+  line-height: 1;
+  background: none;
+  border: none;
+  cursor: pointer;
+  opacity: 0.85;
+  display: inline-flex;
+  align-items: center;
+  gap: 0.15rem;
+}
+button.card-note-btn:hover {
+  opacity: 1;
+}
+button.card-note-btn .note-count {
+  font-size: 0.6rem;
+  font-weight: 700;
+  color: #fff;
+  background: var(--accent-ink);
+  border-radius: 999px;
+  min-width: 1rem;
+  height: 1rem;
+  padding: 0 0.2rem;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+}
+.notes-overlay {
+  position: fixed;
+  inset: 0;
+  z-index: 100;
+  background: rgba(15, 23, 32, 0.45);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 1rem;
+}
+.notes-modal {
+  width: min(30rem, 100%);
+  max-height: 85vh;
+  display: flex;
+  flex-direction: column;
+  gap: 0.9rem;
+  box-shadow: 0 16px 48px rgba(0, 0, 0, 0.28);
+}
+.notes-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.5rem;
+}
+.notes-head h3 {
+  margin: 0;
+  font-size: 1rem;
+}
+button.notes-close {
+  background: none;
+  border: none;
+  font-size: 1.4rem;
+  line-height: 1;
+  cursor: pointer;
+  color: var(--muted);
+}
+button.notes-close:hover {
+  color: var(--text);
+}
+.notes-list {
+  display: flex;
+  flex-direction: column;
+  gap: 0.6rem;
+  overflow-y: auto;
+}
+.note-item {
+  border: 1px solid var(--border);
+  border-radius: 0.5rem;
+  padding: 0.55rem 0.7rem;
+  background: var(--bg);
+}
+.note-body {
+  margin: 0 0 0.35rem;
+  white-space: pre-wrap;
+  word-break: break-word;
+  color: var(--text);
+}
+.note-meta {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.5rem;
+  font-size: 0.72rem;
+  color: var(--muted);
+}
+.notes-add {
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+}
+.notes-add textarea {
+  width: 100%;
+  resize: vertical;
+  font: inherit;
+}
+.notes-add .btn {
+  align-self: flex-end;
+}
+
 /* ---- Print: A4 landscape for the weekly board & monthly calendar ---------- */
 @media print {
   @page {

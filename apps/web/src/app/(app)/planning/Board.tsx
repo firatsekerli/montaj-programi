@@ -19,10 +19,19 @@ import {
   undoInstalled,
   unpinAssignment,
 } from "@/app/actions/planning";
+import { addOrderNote, deleteOrderNote } from "@/app/actions/notes";
+
+export interface NoteItem {
+  id: string;
+  body: string;
+  authorName: string | null;
+  createdAt: string;
+}
 
 export interface BoardAssignment {
   id: string;
   teamId: string;
+  orderId: string;
   date: string;
   units: number;
   cost: number;
@@ -62,11 +71,13 @@ export function PlanningBoard({
   people,
   weekDays,
   assignments,
+  notesByOrder,
 }: {
   teams: TeamRow[];
   people: PersonRow[];
   weekDays: string[];
   assignments: BoardAssignment[];
+  notesByOrder: Record<string, NoteItem[]>;
 }) {
   const [items, setItems] = useState(assignments);
   // Re-sync when the server sends new data (after generate/regenerate, week
@@ -265,6 +276,7 @@ export function PlanningBoard({
               weekDays={weekDays}
               narrowDays={narrowDays}
               items={items}
+              notesByOrder={notesByOrder}
               onUnpin={onUnpin}
               onMove={apply}
               onRecord={onRecord}
@@ -287,6 +299,7 @@ function BoardRow({
   weekDays,
   narrowDays,
   items,
+  notesByOrder,
   onUnpin,
   onMove,
   onRecord,
@@ -301,6 +314,7 @@ function BoardRow({
   weekDays: string[];
   narrowDays: Set<string>;
   items: BoardAssignment[];
+  notesByOrder: Record<string, NoteItem[]>;
   onUnpin: (id: string) => void;
   onMove: (id: string, teamId: string, date: string) => void;
   onRecord: (id: string, installed: number, installerIds: string[]) => void;
@@ -323,6 +337,7 @@ function BoardRow({
             cards={cell}
             teams={teams}
             people={people}
+            notesByOrder={notesByOrder}
             weekend={isWeekend(d)}
             narrow={narrowDays.has(d)}
             onUnpin={onUnpin}
@@ -345,6 +360,7 @@ function Cell({
   cards,
   teams,
   people,
+  notesByOrder,
   weekend,
   narrow,
   onUnpin,
@@ -360,6 +376,7 @@ function Cell({
   cards: BoardAssignment[];
   teams: TeamRow[];
   people: PersonRow[];
+  notesByOrder: Record<string, NoteItem[]>;
   weekend: boolean;
   narrow: boolean;
   onUnpin: (id: string) => void;
@@ -392,6 +409,7 @@ function Cell({
           a={c}
           teams={teams}
           people={people}
+          notes={notesByOrder[c.orderId] ?? []}
           onUnpin={onUnpin}
           onMove={onMove}
           onRecord={onRecord}
@@ -409,6 +427,7 @@ function Card({
   a,
   teams,
   people,
+  notes,
   onUnpin,
   onMove,
   onRecord,
@@ -420,6 +439,7 @@ function Card({
   a: BoardAssignment;
   teams: TeamRow[];
   people: PersonRow[];
+  notes: NoteItem[];
   onUnpin: (id: string) => void;
   onMove: (id: string, teamId: string, date: string) => void;
   onRecord: (id: string, installed: number, installerIds: string[]) => void;
@@ -429,6 +449,7 @@ function Card({
   onToggleSelect: (id: string) => void;
 }) {
   const t = useTranslations("planning");
+  const [notesOpen, setNotesOpen] = useState(false);
   const doneCard = a.status === "completed";
   const selectable = bulkMode && !doneCard;
   // Completed cards are locked; dragging is also off in bulk-select mode.
@@ -493,6 +514,20 @@ function Card({
             }}
           >
             📌
+          </button>
+        )}
+        {!bulkMode && (
+          <button
+            type="button"
+            className={`card-note-btn${notes.length ? " has-notes" : ""}`}
+            title={t("notesTitle")}
+            onPointerDown={stop}
+            onClick={(e) => {
+              stop(e);
+              setNotesOpen(true);
+            }}
+          >
+            📝{notes.length > 0 && <span className="note-count">{notes.length}</span>}
           </button>
         )}
         {!bulkMode && !doneCard && (
@@ -619,6 +654,114 @@ function Card({
           </button>
         </div>
       )}
+
+      {notesOpen && (
+        <NotesModal
+          orderId={a.orderId}
+          orderCode={a.orderCode}
+          notes={notes}
+          onClose={() => setNotesOpen(false)}
+        />
+      )}
+    </div>
+  );
+}
+
+/** Full-screen modal listing an order's notes, with add + delete. */
+function NotesModal({
+  orderId,
+  orderCode,
+  notes,
+  onClose,
+}: {
+  orderId: string;
+  orderCode: string;
+  notes: NoteItem[];
+  onClose: () => void;
+}) {
+  const t = useTranslations("planning");
+  const format = useFormatter();
+  const router = useRouter();
+  const [, startTransition] = useTransition();
+  const [draft, setDraft] = useState("");
+  const [busy, setBusy] = useState(false);
+
+  function add() {
+    const body = draft.trim();
+    if (!body || busy) return;
+    setBusy(true);
+    startTransition(async () => {
+      await addOrderNote(orderId, body);
+      setDraft("");
+      setBusy(false);
+      router.refresh();
+    });
+  }
+  function remove(id: string) {
+    setBusy(true);
+    startTransition(async () => {
+      await deleteOrderNote(id);
+      setBusy(false);
+      router.refresh();
+    });
+  }
+
+  return (
+    <div
+      className="notes-overlay"
+      onPointerDown={(e) => e.stopPropagation()}
+      onClick={onClose}
+    >
+      <div
+        className="notes-modal panel"
+        role="dialog"
+        aria-label={t("notesTitle")}
+        onClick={(e) => e.stopPropagation()}
+      >
+        <div className="notes-head">
+          <h3>
+            {t("notesFor")} <span className="mono">{orderCode}</span>
+          </h3>
+          <button type="button" className="notes-close" onClick={onClose} aria-label={t("cancel")}>
+            ×
+          </button>
+        </div>
+
+        <div className="notes-list">
+          {notes.length === 0 && <p className="help">{t("notesEmpty")}</p>}
+          {notes.map((n) => (
+            <div key={n.id} className="note-item">
+              <p className="note-body">{n.body}</p>
+              <div className="note-meta">
+                <span>
+                  {n.authorName ?? "—"} ·{" "}
+                  {format.dateTime(new Date(n.createdAt), { dateStyle: "medium", timeStyle: "short" })}
+                </span>
+                <button
+                  type="button"
+                  className="link-danger"
+                  disabled={busy}
+                  onClick={() => remove(n.id)}
+                >
+                  {t("notesDelete")}
+                </button>
+              </div>
+            </div>
+          ))}
+        </div>
+
+        <div className="notes-add">
+          <textarea
+            value={draft}
+            onChange={(e) => setDraft(e.target.value)}
+            placeholder={t("notesPlaceholder")}
+            rows={3}
+          />
+          <button type="button" className="btn" disabled={busy || !draft.trim()} onClick={add}>
+            {t("notesAdd")}
+          </button>
+        </div>
+      </div>
     </div>
   );
 }

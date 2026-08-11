@@ -3,7 +3,7 @@ import { getTranslations, getFormatter } from "next-intl/server";
 import { createSupabaseServerClient } from "@/lib/supabase/server";
 import { one } from "@/lib/rel";
 import { mondayOf, weekDaysFrom } from "@/lib/planning";
-import { PlanningBoard, type BoardAssignment } from "./Board";
+import { PlanningBoard, type BoardAssignment, type NoteItem } from "./Board";
 import { GenerateButton } from "./GenerateButton";
 import { ExportButton } from "./ExportButton";
 import { PrintButton } from "../PrintButton";
@@ -55,10 +55,32 @@ export default async function PlanningPage({
 
   const unplaced: Unplaced[] = (plan?.unplaced as Unplaced[] | undefined) ?? [];
 
+  // Per-order notes shown on cards. Tolerant of a lagging migration (0026): if
+  // the table is absent, cards simply show no notes.
+  const notesByOrder: Record<string, NoteItem[]> = {};
+  const notesRes = await supabase
+    .from("order_note")
+    .select("id, order_id, body, author_name, created_at")
+    .order("created_at", { ascending: true });
+  for (const n of (notesRes.data ?? []) as Array<{
+    id: string;
+    order_id: string;
+    body: string;
+    author_name: string | null;
+    created_at: string;
+  }>) {
+    (notesByOrder[n.order_id] ??= []).push({
+      id: n.id,
+      body: n.body,
+      authorName: n.author_name,
+      createdAt: n.created_at,
+    });
+  }
+
   let assignments: BoardAssignment[] = [];
   if (plan) {
     const cols =
-      "id, team_id, assign_date, units, estimated_cost, status, work_order:order_id(code, delivery_date), order_line:order_line_id(work_item_type:work_item_type_id(name))";
+      "id, team_id, order_id, assign_date, units, estimated_cost, status, work_order:order_id(code, delivery_date), order_line:order_line_id(work_item_type:work_item_type_id(name))";
     // Include `manual` (0014) when present; fall back if the migration is behind.
     const run = (sel: string) =>
       supabase
@@ -75,6 +97,7 @@ export default async function PlanningPage({
       return {
         id: String(a.id),
         teamId: String(a.team_id),
+        orderId: String(a.order_id),
         date: String(a.assign_date),
         units: Number(a.units),
         cost: Number(a.estimated_cost ?? 0),
@@ -112,7 +135,13 @@ export default async function PlanningPage({
       {(teams ?? []).length === 0 ? (
         <p className="note">{t("noTeams")}</p>
       ) : (
-        <PlanningBoard teams={teams ?? []} people={people} weekDays={weekDays} assignments={assignments} />
+        <PlanningBoard
+          teams={teams ?? []}
+          people={people}
+          weekDays={weekDays}
+          assignments={assignments}
+          notesByOrder={notesByOrder}
+        />
       )}
 
       {unplaced.length > 0 && (
