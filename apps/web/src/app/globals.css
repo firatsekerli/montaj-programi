@@ -1,12 +1,15 @@
 :root {
-  --bg: #0b1220;
-  --panel: #111a2e;
-  --panel-2: #0e1626;
-  --border: #223052;
-  --text: #e6ecf7;
-  --muted: #94a3b8;
-  --accent: #4f9dff;
-  --danger: #f87171;
+  --bg: #f4f6f8;          /* app background */
+  --panel: #ffffff;       /* cards / panels */
+  --panel-2: #eef1f5;     /* secondary surfaces: headers, inputs, chips */
+  --border: #d7dce3;
+  --text: #1b2430;        /* primary text — ~13:1 on white */
+  --muted: #59636f;       /* secondary text — ~5.2:1 on white */
+  --accent: #ff6b00;      /* brand — FILLS (buttons) with dark ink text */
+  --accent-ink: #b34700;  /* brand — TEXT/links on light — ~5.5:1 on white */
+  --danger: #d92d20;      /* error/late — ~4.9:1 (white text on it, or as text) */
+  --ok: #15803d;          /* success / completed text — ~5:1 */
+  --warn: #b45309;        /* in-progress / amber text — ~5:1 */
   --radius: 12px;
 }
 
@@ -20,12 +23,13 @@ body {
   padding: 0;
   background: var(--bg);
   color: var(--text);
+  color-scheme: light;
   font-family: system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
   line-height: 1.5;
 }
 
 a {
-  color: var(--accent);
+  color: var(--accent-ink);
   text-decoration: none;
 }
 a:hover {
@@ -86,7 +90,7 @@ h2 {
   font-size: 0.85rem;
 }
 .brand .brand-user {
-  color: var(--accent);
+  color: var(--accent-ink);
   font-weight: 600;
 }
 .sidebar nav {
@@ -156,6 +160,7 @@ main {
   border-radius: var(--radius);
   padding: 1.25rem 1.5rem;
   margin: 1.25rem 0;
+  box-shadow: 0 1px 2px rgba(16, 24, 40, 0.04), 0 1px 3px rgba(16, 24, 40, 0.06);
 }
 table {
   width: 100%;
@@ -239,8 +244,8 @@ tr:last-child td {
   margin-inline-end: 0.35rem;
 }
 .badge.sub {
-  color: #fbbf24;
-  border-color: #6b551a;
+  color: var(--warn);
+  border-color: color-mix(in srgb, var(--warn) 45%, var(--border));
 }
 
 /* ---- Buttons & forms ---- */
@@ -409,9 +414,9 @@ dialog.modal::backdrop {
   gap: 1rem;
   margin-bottom: 0.75rem;
   padding: 0.6rem 0.9rem;
-  border: 1px solid #d9a441;
-  background: color-mix(in srgb, #f0b429 16%, transparent);
-  color: #f0b429;
+  border: 1px solid color-mix(in srgb, var(--warn) 45%, var(--border));
+  background: color-mix(in srgb, var(--warn) 12%, var(--panel));
+  color: var(--warn);
   border-radius: 8px;
   font-size: 0.9rem;
 }
@@ -495,7 +500,7 @@ label.checkbox input {
 }
 .live-loc-status {
   font-size: 0.8rem;
-  color: var(--accent);
+  color: var(--accent-ink);
   white-space: nowrap;
 }
 .muted-cell .live-loc {
@@ -542,7 +547,7 @@ label.checkbox input {
 .btn-ghost {
   align-self: flex-start;
   background: transparent;
-  color: var(--accent);
+  color: var(--accent-ink);
   border: 1px dashed var(--border);
   padding: 0.4rem 0.75rem;
   border-radius: 8px;
@@ -550,7 +555,7 @@ label.checkbox input {
   font: inherit;
 }
 .btn-ghost:hover {
-  border-color: var(--accent);
+  border-color: var(--accent-ink);
 }
 /* Orders list filter toolbar. */
 .list-toolbar {
@@ -608,15 +613,15 @@ label.checkbox input {
   white-space: nowrap;
 }
 .status-badge.status-planned {
-  color: var(--accent);
+  color: var(--accent-ink);
   border-color: color-mix(in srgb, var(--accent) 55%, var(--border));
 }
 .status-badge.status-in_progress {
-  color: #e0b34d;
-  border-color: color-mix(in srgb, #e0b34d 55%, var(--border));
+  color: var(--warn);
+  border-color: color-mix(in srgb, var(--warn) 55%, var(--border));
 }
 .status-badge.status-completed {
-  color: #7bd88f;
+  color: var(--ok);
   border-color: color-mix(in srgb, #2e7d32 60%, var(--border));
 }
 .status-badge.status-blocked {
@@ -977,16 +982,16 @@ button.card-action {
 }
 button.card-action:hover {
   color: var(--text);
-  border-color: var(--accent);
+  border-color: var(--accent-ink);
 }
 /* The record-installed action is an INPUT trigger, not a status — use the
    accent (blue), never green. Green is reserved for a completed card. */
 button.card-action.record {
-  color: var(--accent);
+  color: var(--accent-ink);
   border-color: color-mix(in srgb, var(--accent) 55%, var(--border));
 }
 button.card-action.record:hover {
-  border-color: var(--accent);
+  border-color: var(--accent-ink);
   background: color-mix(in srgb, var(--accent) 15%, var(--panel));
 }
 /* Undo on a completed (green) card — legible against the green background. */
@@ -1036,7 +1041,7 @@ button.card-action.undo:hover {
   cursor: default;
 }
 .card-plan.done .card-cost {
-  color: #7bd88f;
+  color: var(--ok);
 }
 
 /* ---- Month calendar (dashboard) ---- */
@@ -1067,8 +1072,8 @@ button.card-action.undo:hover {
   font-size: 1.1rem;
 }
 .cal-nav:hover {
-  border-color: var(--accent);
-  color: var(--accent);
+  border-color: var(--accent-ink);
+  color: var(--accent-ink);
 }
 .cal-grid {
   display: grid;
@@ -1095,13 +1100,13 @@ button.card-action.undo:hover {
   overflow: hidden;
 }
 .cal-cell:hover {
-  border-color: var(--accent);
+  border-color: var(--accent-ink);
 }
 .cal-cell.out {
   opacity: 0.45;
 }
 .cal-cell.today {
-  border-color: var(--accent);
+  border-color: var(--accent-ink);
   box-shadow: inset 0 0 0 1px var(--accent);
 }
 .cal-day {
@@ -1111,7 +1116,7 @@ button.card-action.undo:hover {
   line-height: 1;
 }
 .cal-cell.today .cal-day {
-  color: var(--accent);
+  color: var(--accent-ink);
   font-weight: 700;
 }
 .cal-chip {
@@ -1177,7 +1182,7 @@ button.card-action.undo:hover {
   width: 1.15rem;
   height: 1.15rem;
   margin-top: 0.15rem;
-  accent-color: var(--accent);
+  accent-color: var(--accent-ink);
   cursor: pointer;
   flex: none;
 }
@@ -1204,8 +1209,8 @@ button.card-action.undo:hover {
   color: var(--muted);
 }
 .task-kind.kind-manlift_transfer {
-  color: var(--accent);
-  border-color: var(--accent);
+  color: var(--accent-ink);
+  border-color: var(--accent-ink);
 }
 .task-kind.kind-deadline_risk {
   color: #fff;
@@ -1213,8 +1218,8 @@ button.card-action.undo:hover {
   border-color: var(--danger);
 }
 .task-kind.kind-shipment {
-  color: #e0b34d;
-  border-color: color-mix(in srgb, #e0b34d 60%, var(--border));
+  color: var(--warn);
+  border-color: color-mix(in srgb, var(--warn) 60%, var(--border));
 }
 .task-due {
   color: var(--muted);
@@ -1265,7 +1270,7 @@ button.task-filter:hover {
 }
 button.task-filter.active {
   color: var(--text);
-  border-color: var(--accent);
+  border-color: var(--accent-ink);
   background: color-mix(in srgb, var(--accent) 16%, var(--panel-2));
 }
 .task-filter-count {
@@ -1470,7 +1475,7 @@ button.task-filter.active {
   cursor: pointer;
 }
 .card-plan.selected {
-  border-color: var(--accent);
+  border-color: var(--accent-ink);
   box-shadow: inset 0 0 0 1px var(--accent);
   background: color-mix(in srgb, var(--accent) 14%, var(--panel-2));
 }
@@ -1478,7 +1483,7 @@ button.task-filter.active {
   width: 0.95rem;
   height: 0.95rem;
   margin-inline-end: 0.35rem;
-  accent-color: var(--accent);
+  accent-color: var(--accent-ink);
   vertical-align: middle;
   pointer-events: none;
 }
