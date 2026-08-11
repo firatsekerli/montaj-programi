@@ -1303,6 +1303,34 @@ button.task-filter.active {
   gap: 0.6rem;
 }
 
+/* ---- Export (date range → Excel) popover --------------------------------- */
+.export-wrap {
+  position: relative;
+}
+.export-pop {
+  position: absolute;
+  right: 0;
+  top: calc(100% + 0.4rem);
+  z-index: 30;
+  width: 16rem;
+  display: flex;
+  flex-direction: column;
+  gap: 0.6rem;
+  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.12);
+}
+.export-pop label {
+  display: flex;
+  flex-direction: column;
+  gap: 0.25rem;
+  font-size: 0.85rem;
+  color: var(--muted);
+}
+.export-actions {
+  display: flex;
+  justify-content: flex-end;
+  gap: 0.5rem;
+}
+
 /* ---- Print: A4 landscape for the weekly board & monthly calendar ---------- */
 @media print {
   @page {

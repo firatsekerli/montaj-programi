@@ -5,6 +5,7 @@ import { one } from "@/lib/rel";
 import { mondayOf, weekDaysFrom } from "@/lib/planning";
 import { PlanningBoard, type BoardAssignment } from "./Board";
 import { GenerateButton } from "./GenerateButton";
+import { ExportButton } from "./ExportButton";
 import { PrintButton } from "../PrintButton";
 
 function shiftWeek(weekStart: string, deltaDays: number): string {
@@ -92,6 +93,7 @@ export default async function PlanningPage({
         <h1>{t("title")}</h1>
         <div className="head-actions">
           <PrintButton />
+          <ExportButton />
           <GenerateButton hasPlan={Boolean(plan)} />
         </div>
       </div>
