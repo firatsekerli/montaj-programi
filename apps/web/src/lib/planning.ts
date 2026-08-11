@@ -283,6 +283,11 @@ export function datesBetween(fromISO: string, toISO: string, maxDays = 400): str
   return out;
 }
 
+/** Whether `dateISO` is one of the working weekdays. */
+export function isWorkingDay(dateISO: string, workingWeekdays: number[]): boolean {
+  return isWorking(new Date(`${dateISO}T00:00:00Z`), workingWeekdays);
+}
+
 /** The first working day strictly AFTER `dateISO`. */
 export function nextWorkingDay(dateISO: string, workingWeekdays: number[]): string {
   const d = new Date(`${dateISO}T00:00:00Z`);

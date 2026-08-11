@@ -12,7 +12,13 @@ import {
   useSensors,
   type DragEndEvent,
 } from "@dnd-kit/core";
-import { moveAssignment, recordInstalled, undoInstalled, unpinAssignment } from "@/app/actions/planning";
+import {
+  bulkMove,
+  moveAssignment,
+  recordInstalled,
+  undoInstalled,
+  unpinAssignment,
+} from "@/app/actions/planning";
 
 export interface BoardAssignment {
   id: string;
@@ -67,7 +73,37 @@ export function PlanningBoard({
   const [notice, setNotice] = useState<string | null>(null);
   const router = useRouter();
   const format = useFormatter();
+  const t = useTranslations("planning");
   const sensors = useSensors(useSensor(PointerSensor, { activationConstraint: { distance: 4 } }));
+
+  // Bulk-move: pick several cards, then send them all to a team + date.
+  const [bulkMode, setBulkMode] = useState(false);
+  const [selected, setSelected] = useState<Set<string>>(new Set());
+  const [bulkTeam, setBulkTeam] = useState(teams[0]?.id ?? "");
+  const [bulkDate, setBulkDate] = useState("");
+  function toggleSelect(id: string) {
+    setSelected((prev) => {
+      const n = new Set(prev);
+      if (n.has(id)) n.delete(id);
+      else n.add(id);
+      return n;
+    });
+  }
+  function exitBulk() {
+    setBulkMode(false);
+    setSelected(new Set());
+  }
+  function applyBulk() {
+    if (!bulkDate || selected.size === 0) return;
+    const ids = [...selected];
+    startTransition(async () => {
+      await bulkMove(ids, bulkTeam, bulkDate);
+      const target = mondayOfISO(bulkDate);
+      exitBulk();
+      if (!weekDays.includes(bulkDate)) router.push(`/planning?week=${target}`);
+      else router.refresh();
+    });
+  }
 
   // A weekend column stays narrow until a card is dropped on it (anywhere in the
   // column). Computed once so header and every row cell agree on the width.
@@ -155,6 +191,38 @@ export function PlanningBoard({
           </button>
         </div>
       )}
+
+      <div className="bulk-bar no-print">
+        {!bulkMode ? (
+          <button type="button" className="btn-ghost" onClick={() => setBulkMode(true)}>
+            {t("bulkMove")}
+          </button>
+        ) : (
+          <>
+            <strong>{t("selectedN", { n: selected.size })}</strong>
+            <select value={bulkTeam} onChange={(e) => setBulkTeam(e.target.value)} aria-label={t("moveTeam")}>
+              {teams.map((tm) => (
+                <option key={tm.id} value={tm.id}>
+                  {tm.name}
+                </option>
+              ))}
+            </select>
+            <input type="date" value={bulkDate} onChange={(e) => setBulkDate(e.target.value)} aria-label={t("moveDate")} />
+            <button
+              type="button"
+              className="btn"
+              disabled={!bulkDate || selected.size === 0}
+              onClick={applyBulk}
+            >
+              {t("move")}
+            </button>
+            <button type="button" className="btn-ghost" onClick={exitBulk}>
+              {t("cancel")}
+            </button>
+          </>
+        )}
+      </div>
+
       <div
         className="board-topscroll"
         ref={topRef}
@@ -194,6 +262,9 @@ export function PlanningBoard({
               onMove={apply}
               onRecord={onRecord}
               onUndo={onUndo}
+              bulkMode={bulkMode}
+              selected={selected}
+              onToggleSelect={toggleSelect}
             />
           ))}
         </div>
@@ -212,6 +283,9 @@ function BoardRow({
   onMove,
   onRecord,
   onUndo,
+  bulkMode,
+  selected,
+  onToggleSelect,
 }: {
   team: TeamRow;
   teams: TeamRow[];
@@ -222,6 +296,9 @@ function BoardRow({
   onMove: (id: string, teamId: string, date: string) => void;
   onRecord: (id: string, installed: number) => void;
   onUndo: (id: string) => void;
+  bulkMode: boolean;
+  selected: Set<string>;
+  onToggleSelect: (id: string) => void;
 }) {
   return (
     <>
@@ -242,6 +319,9 @@ function BoardRow({
             onMove={onMove}
             onRecord={onRecord}
             onUndo={onUndo}
+            bulkMode={bulkMode}
+            selected={selected}
+            onToggleSelect={onToggleSelect}
           />
         );
       })}
@@ -260,6 +340,9 @@ function Cell({
   onMove,
   onRecord,
   onUndo,
+  bulkMode,
+  selected,
+  onToggleSelect,
 }: {
   cellId: string;
   usage: number;
@@ -271,6 +354,9 @@ function Cell({
   onMove: (id: string, teamId: string, date: string) => void;
   onRecord: (id: string, installed: number) => void;
   onUndo: (id: string) => void;
+  bulkMode: boolean;
+  selected: Set<string>;
+  onToggleSelect: (id: string) => void;
 }) {
   const { setNodeRef, isOver } = useDroppable({ id: cellId });
   const over = usage > 1.0001;
@@ -289,7 +375,18 @@ function Cell({
         </div>
       </div>
       {cards.map((c) => (
-        <Card key={c.id} a={c} teams={teams} onUnpin={onUnpin} onMove={onMove} onRecord={onRecord} onUndo={onUndo} />
+        <Card
+          key={c.id}
+          a={c}
+          teams={teams}
+          onUnpin={onUnpin}
+          onMove={onMove}
+          onRecord={onRecord}
+          onUndo={onUndo}
+          bulkMode={bulkMode}
+          selected={selected.has(c.id)}
+          onToggleSelect={onToggleSelect}
+        />
       ))}
     </div>
   );
@@ -302,6 +399,9 @@ function Card({
   onMove,
   onRecord,
   onUndo,
+  bulkMode,
+  selected,
+  onToggleSelect,
 }: {
   a: BoardAssignment;
   teams: TeamRow[];
@@ -309,12 +409,17 @@ function Card({
   onMove: (id: string, teamId: string, date: string) => void;
   onRecord: (id: string, installed: number) => void;
   onUndo: (id: string) => void;
+  bulkMode: boolean;
+  selected: boolean;
+  onToggleSelect: (id: string) => void;
 }) {
   const t = useTranslations("planning");
-  // Completed (installed) cards are locked — no drag, no move panel.
+  const doneCard = a.status === "completed";
+  const selectable = bulkMode && !doneCard;
+  // Completed cards are locked; dragging is also off in bulk-select mode.
   const { attributes, listeners, setNodeRef, transform, isDragging } = useDraggable({
     id: a.id,
-    disabled: a.status === "completed",
+    disabled: doneCard || bulkMode,
   });
   const [editing, setEditing] = useState(false);
   const [recording, setRecording] = useState(false);
@@ -326,17 +431,26 @@ function Card({
     ? { transform: `translate(${transform.x}px, ${transform.y}px)`, zIndex: 20 }
     : undefined;
   const late = Boolean(a.deliveryDate && a.date > a.deliveryDate);
-  const doneCard = a.status === "completed";
 
   return (
     <div
       ref={setNodeRef}
       style={style}
-      className={`card-plan${isDragging ? " dragging" : ""}${late ? " late" : ""}${doneCard ? " done" : ""}`}
-      {...listeners}
-      {...attributes}
+      className={`card-plan${isDragging ? " dragging" : ""}${late ? " late" : ""}${doneCard ? " done" : ""}${selectable ? " selectable" : ""}${selected ? " selected" : ""}`}
+      onClick={selectable ? () => onToggleSelect(a.id) : undefined}
+      {...(bulkMode ? {} : listeners)}
+      {...(bulkMode ? {} : attributes)}
     >
       <strong>
+        {selectable && (
+          <input
+            type="checkbox"
+            className="card-select"
+            checked={selected}
+            readOnly
+            aria-label={t("select")}
+          />
+        )}
         {doneCard && "✓ "}
         {a.orderCode}
         {late && (
@@ -358,7 +472,7 @@ function Card({
             📌
           </button>
         )}
-        {!doneCard && (
+        {!bulkMode && !doneCard && (
           <span className="card-actions">
             <button
               type="button"
@@ -391,7 +505,7 @@ function Card({
             </button>
           </span>
         )}
-        {doneCard && (
+        {!bulkMode && doneCard && (
           <span className="card-actions">
             <button
               type="button"

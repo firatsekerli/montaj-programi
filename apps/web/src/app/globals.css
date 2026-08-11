@@ -1447,3 +1447,38 @@ button.task-filter.active {
     justify-content: center;
   }
 }
+
+/* ---- Bulk move (select several cards → one date) --------------------------- */
+.bulk-bar {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0.6rem;
+  margin-bottom: 0.6rem;
+}
+.bulk-bar select,
+.bulk-bar input[type="date"] {
+  background: var(--panel-2);
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  padding: 0.35rem 0.5rem;
+  color: var(--text);
+  font: inherit;
+  font-size: 0.85rem;
+}
+.card-plan.selectable {
+  cursor: pointer;
+}
+.card-plan.selected {
+  border-color: var(--accent);
+  box-shadow: inset 0 0 0 1px var(--accent);
+  background: color-mix(in srgb, var(--accent) 14%, var(--panel-2));
+}
+.card-select {
+  width: 0.95rem;
+  height: 0.95rem;
+  margin-inline-end: 0.35rem;
+  accent-color: var(--accent);
+  vertical-align: middle;
+  pointer-events: none;
+}

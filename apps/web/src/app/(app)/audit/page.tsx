@@ -8,6 +8,7 @@ const KNOWN = new Set([
   "order.block",
   "order.unblock",
   "assignment.move",
+  "assignment.bulk_move",
   "assignment.record",
   "assignment.undo",
   "plan.generate",

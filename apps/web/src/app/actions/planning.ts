@@ -19,6 +19,7 @@ import { createSupabaseServerClient } from "@/lib/supabase/server";
 import {
   buildPlanningContext,
   horizonWorkingDays,
+  isWorkingDay,
   lineFacts,
   nextWorkingDay,
   subtractWorkingDays,
@@ -731,6 +732,54 @@ export async function moveAssignment(
   revalidatePath("/planning");
   revalidatePath("/notifications");
   return warning ? { warning } : {};
+}
+
+/**
+ * Bulk-move several cards to a target team + date: they're packed consecutively
+ * from that date across working days (by their day-cost), pinned so they stay,
+ * and the plan is re-flowed so the remaining non-pinned work shifts around them.
+ */
+export async function bulkMove(ids: string[], teamId: string, date: string) {
+  if (!ids.length || !teamId || !date) return;
+  const supabase = await createSupabaseServerClient();
+  const ctx = await buildPlanningContext(supabase);
+  const wd = ctx.calendar.workingWeekdays;
+
+  const { data: rows } = await supabase
+    .from("assignment")
+    .select("id, estimated_cost, plan_id, team_id, assign_date")
+    .in("id", ids);
+  if (!rows || rows.length === 0) return;
+  const planId = rows[0]!.plan_id as string;
+  const dayBudget = 1 + ctx.dayFillTolerance;
+
+  const affected = new Set<string>();
+  for (const r of rows) affected.add(`${r.team_id}|${r.assign_date}`);
+
+  // Pack the selected cards from the target date forward, spilling to the next
+  // working day when the day is full.
+  let cursor = isWorkingDay(date, wd) ? date : nextWorkingDay(date, wd);
+  let used = 0;
+  for (const r of rows) {
+    const cost = Number(r.estimated_cost ?? 0) || 0.5;
+    if (used > 1e-9 && used + cost > dayBudget) {
+      cursor = nextWorkingDay(cursor, wd);
+      used = 0;
+    }
+    const payload = { team_id: teamId, assign_date: cursor };
+    let upd = await supabase.from("assignment").update({ ...payload, manual: true }).eq("id", r.id);
+    if (upd.error) upd = await supabase.from("assignment").update(payload).eq("id", r.id);
+    affected.add(`${teamId}|${cursor}`);
+    used += cost;
+  }
+
+  for (const key of affected) {
+    const [tid, d] = key.split("|");
+    await recomputeTeamDay(supabase, ctx, planId, tid!, d!);
+  }
+  await logAudit({ action: "assignment.bulk_move", entity: "plan", details: { count: rows.length, date } });
+  // Shift the remaining non-pinned work around the pinned selection.
+  await generatePlan();
 }
 
 /**
