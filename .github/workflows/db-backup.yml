@@ -1,0 +1,58 @@
+name: Veritabanı Yedeği
+
+# Her gece Supabase Postgres'in tam bir yedeğini alır ve GitHub Actions
+# artifact olarak saklar (Supabase hesabından bağımsız kopya). Elle de
+# çalıştırılabilir (Actions sekmesi → Run workflow).
+#
+# Gerekli secret: SUPABASE_DB_URL
+#   Supabase Dashboard → Project Settings → Database → Connection string →
+#   "Session pooler" (URI). [YOUR-PASSWORD] yerine veritabanı şifreni yaz.
+#   GitHub repo → Settings → Secrets and variables → Actions → New secret.
+#   (GitHub runner IPv4 olduğu için doğrudan bağlantı değil, "Session pooler"
+#    bağlantısı kullanılmalı.)
+
+on:
+  schedule:
+    - cron: "0 1 * * *" # her gün 01:00 UTC (~04:00 TR)
+  workflow_dispatch: {}
+
+jobs:
+  backup:
+    runs-on: ubuntu-latest
+    steps:
+      - name: pg_dump 17 kur
+        run: |
+          set -euo pipefail
+          sudo install -d /usr/share/postgresql-common/pgdg
+          curl -fsSL https://www.postgresql.org/media/keys/ACCC4CF8.asc \
+            | sudo gpg --dearmor -o /usr/share/postgresql-common/pgdg/apt.postgresql.org.gpg
+          echo "deb [signed-by=/usr/share/postgresql-common/pgdg/apt.postgresql.org.gpg] http://apt.postgresql.org/pub/repos/apt $(lsb_release -cs)-pgdg main" \
+            | sudo tee /etc/apt/sources.list.d/pgdg.list > /dev/null
+          sudo apt-get update
+          sudo apt-get install -y postgresql-client-17
+
+      - name: Yedeği al
+        env:
+          SUPABASE_DB_URL: ${{ secrets.SUPABASE_DB_URL }}
+        run: |
+          set -euo pipefail
+          if [ -z "${SUPABASE_DB_URL:-}" ]; then
+            echo "HATA: SUPABASE_DB_URL secret'i tanımlı değil." >&2
+            exit 1
+          fi
+          STAMP="$(date -u +%Y%m%d-%H%M%S)"
+          mkdir -p backups
+          # Sıkıştırılmış custom format (pg_restore ile geri yüklenir):
+          pg_dump "$SUPABASE_DB_URL" --no-owner --no-privileges -Fc \
+            -f "backups/montaj-${STAMP}.dump"
+          # Okunabilir düz SQL (gzip'li):
+          pg_dump "$SUPABASE_DB_URL" --no-owner --no-privileges \
+            | gzip > "backups/montaj-${STAMP}.sql.gz"
+          ls -lh backups
+
+      - name: Artifact olarak yükle
+        uses: actions/upload-artifact@v4
+        with:
+          name: db-backup-${{ github.run_id }}
+          path: backups/
+          retention-days: 90
