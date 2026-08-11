@@ -318,17 +318,23 @@
     "action": "İşlem",
     "empty": "Henüz kayıt yok.",
     "actions": {
-      "order.create": "Sipariş oluşturdu",
-      "order.update": "Siparişi düzenledi",
-      "order.delete": "Siparişi sildi",
-      "order.block": "Siparişi engelledi",
-      "order.unblock": "Sipariş engelini kaldırdı",
-      "assignment.move": "Kartı taşıdı",
-      "assignment.bulk_move": "Toplu taşıma yaptı",
-      "assignment.record": "Montaj adedi girdi",
-      "assignment.undo": "Montaj kaydını geri aldı",
-      "plan.generate": "Planı yeniden oluşturdu",
-      "plan.clear": "Planı temizledi",
+      "order": {
+        "create": "Yeni sipariş oluşturdu",
+        "update": "Siparişi güncelledi",
+        "delete": "Siparişi sildi",
+        "block": "Siparişi planlama dışı bıraktı",
+        "unblock": "Siparişi planlamaya aldı"
+      },
+      "assignment": {
+        "move": "İşi başka güne/ekibe taşıdı",
+        "bulk_move": "Birden çok işi topluca taşıdı",
+        "record": "Takılan kapı adedini girdi",
+        "undo": "Montaj girişini geri aldı"
+      },
+      "plan": {
+        "generate": "Planı yeniden oluşturdu",
+        "clear": "Planı temizledi"
+      },
       "other": "İşlem"
     }
   },

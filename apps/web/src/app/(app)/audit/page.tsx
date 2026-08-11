@@ -43,13 +43,22 @@ export default async function AuditPage() {
           </thead>
           <tbody>
             {(rows ?? []).map((r) => {
-              const d = (r.details ?? {}) as { installed?: number; of?: number; date?: string };
+              const d = (r.details ?? {}) as {
+                installed?: number;
+                of?: number;
+                date?: string;
+                count?: number;
+              };
+              const fmtDate = (iso: string) =>
+                format.dateTime(new Date(`${iso}T00:00:00`), { dateStyle: "medium" });
               const extra =
                 d.installed != null && d.of != null
                   ? ` (${d.installed}/${d.of})`
-                  : d.date
-                    ? ` → ${d.date}`
-                    : "";
+                  : d.count != null && d.date
+                    ? ` (${d.count} iş → ${fmtDate(d.date)})`
+                    : d.date
+                      ? ` → ${fmtDate(d.date)}`
+                      : "";
               return (
                 <tr key={r.id}>
                   <td className="muted-cell">
