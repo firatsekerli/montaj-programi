@@ -1391,6 +1391,9 @@ button.card-action.note .note-count {
   margin: 0;
   font-size: 1rem;
 }
+.notes-scope {
+  margin: 0;
+}
 button.notes-close {
   background: none;
   border: none;

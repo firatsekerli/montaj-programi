@@ -728,6 +728,7 @@ function NotesModal({
             ×
           </button>
         </div>
+        <p className="help notes-scope">{t("notesScope")}</p>
 
         <div className="notes-list">
           {notes.length === 0 && <p className="help">{t("notesEmpty")}</p>}

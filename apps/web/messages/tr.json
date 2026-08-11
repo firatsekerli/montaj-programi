@@ -262,6 +262,7 @@
     "exportTo": "Bitiş",
     "notesTitle": "Notlar",
     "notesFor": "Notlar —",
+    "notesScope": "Not tüm siparişe eklenir; bu siparişin her kartında (birden fazla güne bölünse de) görünür.",
     "notesEmpty": "Henüz not eklenmedi.",
     "notesAdd": "Not Ekle",
     "notesDelete": "Sil",
