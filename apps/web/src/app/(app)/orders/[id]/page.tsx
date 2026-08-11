@@ -56,6 +56,9 @@ export default async function EditOrderPage({ params }: { params: Promise<{ id: 
           productionConfirmed: row.production_confirmed,
           requiresResource: row.requires_resource ?? true,
           status: row.status,
+          customerName: (row as { customer_name?: string | null }).customer_name ?? null,
+          customerSurname: (row as { customer_surname?: string | null }).customer_surname ?? null,
+          customerPhone: (row as { customer_phone?: string | null }).customer_phone ?? null,
           lines,
         }}
       />

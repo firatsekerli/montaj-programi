@@ -29,7 +29,19 @@ function parse(formData: FormData) {
     // which is harmless (those lines don't reserve a resource anyway).
     requires_resource: formData.get("requires_resource") === "on",
     status: resolveStatus(formData),
+    customer_name: String(formData.get("customer_name") ?? "").trim() || null,
+    customer_surname: String(formData.get("customer_surname") ?? "").trim() || null,
+    customer_phone: String(formData.get("customer_phone") ?? "").trim() || null,
   };
+}
+
+const CUSTOMER_COLS = ["customer_name", "customer_surname", "customer_phone"] as const;
+
+/** Drop the optional customer columns from a payload (for a lagging migration). */
+function withoutCustomer(payload: Record<string, unknown>): Record<string, unknown> {
+  const rest = { ...payload };
+  for (const c of CUSTOMER_COLS) delete rest[c];
+  return rest;
 }
 
 /**
@@ -272,11 +284,15 @@ export async function createOrder(
     supabase, values.delivery_date, lines, values.order_date || null,
   );
 
-  // Tolerant of a lagging migration: retry without requires_resource (0017).
+  // Tolerant of lagging migrations: retry without the customer columns (0025),
+  // then without requires_resource (0017).
   const payload: Record<string, unknown> = { tenant_id: tenantId, ...values, production_ready_date: productionDue };
   let ins = await supabase.from("work_order").insert(payload).select("id").single();
+  if (ins.error) {
+    ins = await supabase.from("work_order").insert(withoutCustomer(payload)).select("id").single();
+  }
   if (ins.error && "requires_resource" in payload) {
-    const { requires_resource: _d, ...rest } = payload;
+    const { requires_resource: _d, ...rest } = withoutCustomer(payload);
     void _d;
     ins = await supabase.from("work_order").insert(rest).select("id").single();
   }
@@ -314,11 +330,15 @@ export async function updateOrder(
     supabase, values.delivery_date, lines, values.order_date || null,
   );
 
-  // Tolerant of a lagging migration: retry without requires_resource (0017).
+  // Tolerant of lagging migrations: retry without customer_* (0025), then
+  // without requires_resource (0017).
   const payload: Record<string, unknown> = { ...values, production_ready_date: productionDue };
   let upd = await supabase.from("work_order").update(payload).eq("id", id);
+  if (upd.error) {
+    upd = await supabase.from("work_order").update(withoutCustomer(payload)).eq("id", id);
+  }
   if (upd.error && "requires_resource" in payload) {
-    const { requires_resource: _d, ...rest } = payload;
+    const { requires_resource: _d, ...rest } = withoutCustomer(payload);
     void _d;
     upd = await supabase.from("work_order").update(rest).eq("id", id);
   }

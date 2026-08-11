@@ -39,6 +39,9 @@ export function OrderForm({
     productionConfirmed?: boolean;
     requiresResource?: boolean;
     status?: string;
+    customerName?: string | null;
+    customerSurname?: string | null;
+    customerPhone?: string | null;
     lines?: Line[];
   };
   submitLabel: string;
@@ -79,6 +82,29 @@ export function OrderForm({
         {t("code")}
         <input name="code" defaultValue={defaults.code} required />
       </label>
+
+      <fieldset>
+        <legend>{t("customer")}</legend>
+        <div className="row-2">
+          <label>
+            {t("customerName")}
+            <input name="customer_name" defaultValue={defaults.customerName ?? ""} />
+          </label>
+          <label>
+            {t("customerSurname")}
+            <input name="customer_surname" defaultValue={defaults.customerSurname ?? ""} />
+          </label>
+        </div>
+        <label>
+          {t("customerPhone")}
+          <input
+            name="customer_phone"
+            type="tel"
+            defaultValue={defaults.customerPhone ?? ""}
+          />
+        </label>
+        <span className="help">{t("customerHelp")}</span>
+      </fieldset>
 
       <div className="row-2">
         <label>
