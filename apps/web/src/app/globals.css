@@ -303,6 +303,13 @@ tr:last-child td {
 .nowrap {
   white-space: nowrap;
 }
+/* Kapı Tipleri table column sizing: wider name, narrower number columns. */
+.wit-col-name {
+  width: 36%;
+}
+.wit-col-num {
+  width: 5rem;
+}
 
 /* ---- Buttons & forms ---- */
 .btn {

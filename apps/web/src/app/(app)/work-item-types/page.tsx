@@ -20,6 +20,14 @@ export default async function WorkItemTypesPage() {
 
       <div className="panel">
         <table>
+          <colgroup>
+            <col className="wit-col-name" />
+            <col />
+            <col />
+            <col className="wit-col-num" />
+            <col className="wit-col-num" />
+            <col />
+          </colgroup>
           <thead>
             <tr>
               <th>{t("name")}</th>
