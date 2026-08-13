@@ -26,11 +26,14 @@ export async function MonthCalendar({
   days,
   prevHref,
   nextHref,
+  appTitle,
 }: {
   monthISO: string;
   days: CalDay[];
   prevHref: string;
   nextHref: string;
+  /** App title shown next to the month label ONLY when printing. */
+  appTitle?: string;
 }) {
   const t = await getTranslations("calendar");
   const format = await getFormatter();
@@ -45,7 +48,10 @@ export async function MonthCalendar({
         <Link className="cal-nav" href={prevHref} aria-label={t("prev")}>
           ←
         </Link>
-        <h2>{monthLabel}</h2>
+        <h2>
+          {appTitle && <span className="cal-app-title">{appTitle} — </span>}
+          {monthLabel}
+        </h2>
         <Link className="cal-nav" href={nextHref} aria-label={t("next")}>
           →
         </Link>

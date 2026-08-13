@@ -1230,6 +1230,11 @@ button.card-action.undo:hover {
   margin: 0;
   font-size: 1.05rem;
 }
+/* App title next to the month label appears only in print (the on-screen title
+   sits at the top of the page). */
+.cal-app-title {
+  display: none;
+}
 .cal-nav {
   display: inline-flex;
   align-items: center;
@@ -1877,6 +1882,9 @@ button.notes-close:hover {
   }
   .cal-head {
     justify-content: center;
+  }
+  .cal-app-title {
+    display: inline;
   }
 }
 

@@ -99,7 +99,7 @@ export default async function DashboardPage({
   return (
     <main>
       <div className="page-head">
-        <h1>{t("title")}</h1>
+        <h1 className="no-print">{t("title")}</h1>
         <PrintButton />
       </div>
       <p className="subtitle no-print">{t("subtitle")}</p>
@@ -118,6 +118,7 @@ export default async function DashboardPage({
         days={calDays}
         prevHref={`/?month=${addMonths(monthISO, -1)}`}
         nextHref={`/?month=${addMonths(monthISO, 1)}`}
+        appTitle={t("title")}
       />
 
       <section className="panel no-print">
