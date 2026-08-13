@@ -334,6 +334,15 @@
     "when": "Zaman",
     "user": "Kullanıcı",
     "action": "İşlem",
+    "actionType": "İşlem türü",
+    "orderCol": "Sipariş",
+    "detail": "Detay",
+    "installer": "Takan",
+    "installedBy": "Takan",
+    "all": "Tümü",
+    "searchOrder": "Sipariş no ara…",
+    "loadMore": "Daha fazla yükle",
+    "loading": "Yükleniyor…",
     "empty": "Henüz kayıt yok.",
     "actions": {
       "order": {

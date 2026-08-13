@@ -1445,6 +1445,33 @@ button.notes-close:hover {
   align-self: flex-end;
 }
 
+/* ---- Audit history: filter bar + load more ------------------------------- */
+.audit-filters {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.75rem;
+  margin-bottom: 1rem;
+}
+.audit-filters label {
+  display: flex;
+  flex-direction: column;
+  gap: 0.25rem;
+  font-size: 0.8rem;
+  color: var(--muted);
+}
+.audit-filters select,
+.audit-filters input {
+  min-width: 11rem;
+}
+.table-scroll {
+  overflow-x: auto;
+}
+.audit-more {
+  display: flex;
+  justify-content: center;
+  margin-top: 1rem;
+}
+
 /* ---- Print: A4 landscape for the weekly board & monthly calendar ---------- */
 @media print {
   @page {

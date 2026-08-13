@@ -1,93 +1,32 @@
-import { getTranslations, getFormatter } from "next-intl/server";
+import { getTranslations } from "next-intl/server";
 import { createSupabaseServerClient } from "@/lib/supabase/server";
+import { fetchAudit } from "@/app/actions/audit";
+import { AuditTable } from "./AuditTable";
 
-const KNOWN = new Set([
-  "order.create",
-  "order.update",
-  "order.delete",
-  "order.block",
-  "order.unblock",
-  "assignment.move",
-  "assignment.bulk_move",
-  "assignment.record",
-  "assignment.undo",
-  "plan.generate",
-  "plan.clear",
-]);
-
-/** Audit history — who changed what, and when. Newest first. */
+/** Audit history — who changed what, and when. Newest first, filterable. */
 export default async function AuditPage() {
   const t = await getTranslations("audit");
-  const format = await getFormatter();
   const supabase = await createSupabaseServerClient();
-  const { data: rows } = await supabase
-    .from("audit_log")
-    .select("id, user_name, action, label, details, created_at")
-    .order("created_at", { ascending: false })
-    .limit(200);
 
-  const actionLabel = (a: string) => (KNOWN.has(a) ? t(`actions.${a}`) : t("actions.other"));
+  // First page + the option lists that feed the filter dropdowns.
+  const { rows, hasMore } = await fetchAudit({}, 0);
+
+  const { data: userRows } = await supabase
+    .from("audit_log")
+    .select("user_name")
+    .not("user_name", "is", null)
+    .order("user_name")
+    .limit(2000);
+  const users = [...new Set(((userRows ?? []) as Array<{ user_name: string | null }>).map((r) => r.user_name).filter(Boolean) as string[])];
+
+  const { data: people } = await supabase.from("person").select("name").order("name");
+  const installers = ((people ?? []) as Array<{ name: string | null }>).map((p) => p.name).filter(Boolean) as string[];
 
   return (
     <main>
       <h1>{t("title")}</h1>
       <p className="subtitle">{t("subtitle")}</p>
-      <div className="panel">
-        <table>
-          <thead>
-            <tr>
-              <th>{t("when")}</th>
-              <th>{t("user")}</th>
-              <th>{t("action")}</th>
-            </tr>
-          </thead>
-          <tbody>
-            {(rows ?? []).map((r) => {
-              const d = (r.details ?? {}) as {
-                installed?: number;
-                of?: number;
-                date?: string;
-                count?: number;
-                installers?: string[];
-              };
-              const fmtDate = (iso: string) =>
-                format.dateTime(new Date(`${iso}T00:00:00`), { dateStyle: "medium" });
-              const who = d.installers && d.installers.length ? ` · Takan: ${d.installers.join(", ")}` : "";
-              const extra =
-                d.installed != null && d.of != null
-                  ? ` (${d.installed}/${d.of})${who}`
-                  : d.count != null && d.date
-                    ? ` (${d.count} iş → ${fmtDate(d.date)})`
-                    : d.date
-                      ? ` → ${fmtDate(d.date)}`
-                      : "";
-              return (
-                <tr key={r.id}>
-                  <td className="muted-cell">
-                    {format.dateTime(new Date(r.created_at as string), {
-                      dateStyle: "medium",
-                      timeStyle: "short",
-                    })}
-                  </td>
-                  <td>{(r.user_name as string) ?? "—"}</td>
-                  <td>
-                    {actionLabel(r.action as string)}
-                    {r.label ? ` — ${r.label as string}` : ""}
-                    {extra}
-                  </td>
-                </tr>
-              );
-            })}
-            {(!rows || rows.length === 0) && (
-              <tr>
-                <td colSpan={3} className="empty">
-                  {t("empty")}
-                </td>
-              </tr>
-            )}
-          </tbody>
-        </table>
-      </div>
+      <AuditTable initialRows={rows} initialHasMore={hasMore} users={users} installers={installers} />
     </main>
   );
 }
