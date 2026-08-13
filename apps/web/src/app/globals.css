@@ -328,6 +328,11 @@ tr:last-child td {
 .guide-content h2:first-child {
   margin-top: 0;
 }
+.guide-content h3 {
+  font-size: 0.95rem;
+  color: var(--muted);
+  margin: 1rem 0 0.4rem;
+}
 .guide-content p {
   margin: 0 0 0.75rem;
   line-height: 1.65;
