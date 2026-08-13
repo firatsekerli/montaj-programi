@@ -1327,12 +1327,61 @@ button.card-action.undo:hover {
 .task-filter.done-filter {
   margin-inline-start: auto;
 }
-.task-search {
+.task-controls {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0.6rem 0.85rem;
   margin-bottom: 0.9rem;
 }
-.task-search .list-search {
-  width: 100%;
+.task-controls .list-search {
+  flex: 1 1 14rem;
   max-width: 22rem;
+}
+.task-toggle {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.4rem;
+  font-size: 0.85rem;
+  color: var(--text);
+  white-space: nowrap;
+  cursor: pointer;
+}
+.task-toggle input {
+  width: auto;
+}
+.task-range {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.4rem;
+}
+.task-range-label {
+  font-size: 0.8rem;
+  color: var(--muted);
+}
+.task-range input[type="date"] {
+  background: var(--panel-2);
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  padding: 0.35rem 0.5rem;
+  color: var(--text);
+  font: inherit;
+  font-size: 0.82rem;
+}
+.task-range-sep {
+  color: var(--muted);
+}
+.task-clear {
+  background: none;
+  border: none;
+  color: var(--accent-ink);
+  font: inherit;
+  font-size: 0.82rem;
+  cursor: pointer;
+  padding: 0;
+}
+.task-clear:hover {
+  text-decoration: underline;
 }
 .task-filter.done-filter.active {
   border-color: #2e7d32;

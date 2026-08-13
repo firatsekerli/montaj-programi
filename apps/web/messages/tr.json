@@ -323,6 +323,11 @@
     "searchOrder": "Sipariş no ara…",
     "noMatch": "Aramaya uyan görev yok.",
     "loadMore": "Daha fazla yükle",
+    "overdueOnly": "Sadece geciken",
+    "dueRange": "Son tarih",
+    "rangeFrom": "Başlangıç",
+    "rangeTo": "Bitiş",
+    "clearFilters": "Filtreleri temizle",
     "kind": {
       "production_check": "Üretim",
       "manlift_transfer": "Manlift transferi",

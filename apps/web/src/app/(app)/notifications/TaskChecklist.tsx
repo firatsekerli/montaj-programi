@@ -36,12 +36,15 @@ export function TaskChecklist({ tasks }: { tasks: TaskItem[] }) {
   const router = useRouter();
   const [filter, setFilter] = useState<string>("all");
   const [query, setQuery] = useState("");
+  const [overdueOnly, setOverdueOnly] = useState(false);
+  const [from, setFrom] = useState("");
+  const [to, setTo] = useState("");
   const [limit, setLimit] = useState(PAGE);
 
-  // Reset the visible window whenever the filter or search changes.
+  // Reset the visible window whenever any filter changes.
   useEffect(() => {
     setLimit(PAGE);
-  }, [filter, query]);
+  }, [filter, query, overdueOnly, from, to]);
 
   const kindLabel = (k: string) => (KNOWN.has(k) ? t(`kind.${k}`) : t("kind.other"));
   const isOverdue = (task: TaskItem) =>
@@ -81,8 +84,20 @@ export function TaskChecklist({ tasks }: { tasks: TaskItem[] }) {
     !q ||
     task.code.toLocaleLowerCase("tr").includes(q) ||
     task.message.toLocaleLowerCase("tr").includes(q);
+  const inRange = (task: TaskItem) => {
+    if (!from && !to) return true;
+    if (!task.dueDate) return false; // a date range excludes tasks with no due date
+    if (from && task.dueDate < from) return false;
+    if (to && task.dueDate > to) return false;
+    return true;
+  };
+  const anyFilter = q !== "" || overdueOnly || from !== "" || to !== "";
   const visible = base.filter(
-    (p) => (activeFilter === "all" || showingDone || p.kind === activeFilter) && matchesQuery(p),
+    (p) =>
+      (activeFilter === "all" || showingDone || p.kind === activeFilter) &&
+      matchesQuery(p) &&
+      (!overdueOnly || isOverdue(p)) &&
+      inRange(p),
   );
 
   // Group by kind under headers when several kinds are shown ("all" or "done").
@@ -162,7 +177,7 @@ export function TaskChecklist({ tasks }: { tasks: TaskItem[] }) {
         </button>
       </div>
 
-      <div className="task-search">
+      <div className="task-controls">
         <input
           type="search"
           className="list-search"
@@ -170,10 +185,50 @@ export function TaskChecklist({ tasks }: { tasks: TaskItem[] }) {
           placeholder={t("searchOrder")}
           onChange={(e) => setQuery(e.target.value)}
         />
+        <label className="task-toggle">
+          <input
+            type="checkbox"
+            checked={overdueOnly}
+            onChange={(e) => setOverdueOnly(e.target.checked)}
+          />
+          {t("overdueOnly")}
+        </label>
+        <div className="task-range">
+          <span className="task-range-label">{t("dueRange")}</span>
+          <input
+            type="date"
+            aria-label={t("rangeFrom")}
+            value={from}
+            max={to || undefined}
+            onChange={(e) => setFrom(e.target.value)}
+          />
+          <span className="task-range-sep">–</span>
+          <input
+            type="date"
+            aria-label={t("rangeTo")}
+            value={to}
+            min={from || undefined}
+            onChange={(e) => setTo(e.target.value)}
+          />
+        </div>
+        {anyFilter && (
+          <button
+            type="button"
+            className="task-clear"
+            onClick={() => {
+              setQuery("");
+              setOverdueOnly(false);
+              setFrom("");
+              setTo("");
+            }}
+          >
+            {t("clearFilters")}
+          </button>
+        )}
       </div>
 
       {visible.length === 0 ? (
-        <p className="empty">{q ? t("noMatch") : showingDone ? t("noCompleted") : t("empty")}</p>
+        <p className="empty">{anyFilter ? t("noMatch") : showingDone ? t("noCompleted") : t("empty")}</p>
       ) : (
         <div className={`task-groups${pending ? " busy" : ""}`}>
           {groups
