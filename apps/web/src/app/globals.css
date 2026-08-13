@@ -156,22 +156,14 @@ main {
 /* On very wide screens, cap the content width and center it. */
 @media (min-width: 1600px) {
   .content {
-    max-width: 1120px;
+    max-width: 1440px;
     margin-inline: auto;
   }
   main {
-    max-width: 1120px;
+    max-width: 1440px;
   }
   .form.form-wide {
-    max-width: 1120px;
-  }
-  /* The planning board is the exception: let it use the full width so the
-     weekly calendar has room instead of being boxed to 1120px. */
-  .content:has(> main.wide-page) {
-    max-width: none;
-  }
-  main.wide-page {
-    max-width: none;
+    max-width: 1440px;
   }
 }
 
