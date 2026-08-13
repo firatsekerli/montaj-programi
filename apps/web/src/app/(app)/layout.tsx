@@ -1,9 +1,9 @@
 import { Suspense, type ReactNode } from "react";
 import { redirect } from "next/navigation";
-import Link from "next/link";
 import { getTranslations } from "next-intl/server";
 import { getCurrentContext, getSessionUser } from "@/lib/auth";
 import { signOut } from "@/app/actions/auth";
+import { NavLinks } from "./NavLinks";
 
 /**
  * Resolves the tenant name off the critical path. Rendered inside <Suspense> so
@@ -49,16 +49,7 @@ export default async function AppLayout({ children }: { children: ReactNode }) {
             <TenantName />
           </Suspense>
         </div>
-        <nav>
-          <Link href="/guide" className="guide-link">
-            {t("guide")}
-          </Link>
-          {links.map((l) => (
-            <Link key={l.href} href={l.href}>
-              {l.label}
-            </Link>
-          ))}
-        </nav>
+        <NavLinks guideLabel={t("guide")} links={links} />
         <form action={signOut} className="signout">
           <button type="submit">{t("signOut")}</button>
         </form>
