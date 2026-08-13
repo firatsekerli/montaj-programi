@@ -256,6 +256,7 @@ tr:last-child td {
 }
 .team-cell .team-name {
   font-weight: 600;
+  white-space: nowrap;
 }
 .team-kind {
   font-size: 0.7rem;
