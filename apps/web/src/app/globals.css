@@ -248,6 +248,24 @@ tr:last-child td {
   border-color: color-mix(in srgb, var(--warn) 45%, var(--border));
 }
 
+/* ---- Team cell: name on top, kind (in-house/subcontractor) below in small ---- */
+.team-cell {
+  display: flex;
+  flex-direction: column;
+  gap: 0.15rem;
+}
+.team-cell .team-name {
+  font-weight: 600;
+}
+.team-kind {
+  font-size: 0.7rem;
+  color: var(--muted);
+}
+.team-kind.sub {
+  color: var(--warn);
+  font-weight: 600;
+}
+
 /* ---- Tag chips (member / capability lists) ---- */
 .tag-list {
   display: flex;

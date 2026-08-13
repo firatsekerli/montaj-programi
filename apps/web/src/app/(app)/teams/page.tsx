@@ -29,7 +29,6 @@ export default async function TeamsPage() {
           <thead>
             <tr>
               <th>{t("name")}</th>
-              <th>{t("kind")}</th>
               <th>{t("members")}</th>
               <th>{t("capabilities")}</th>
               <th />
@@ -46,12 +45,12 @@ export default async function TeamsPage() {
               return (
                 <tr key={r.id}>
                   <td>
-                    <span className="entity-name">{r.name}</span>
-                  </td>
-                  <td>
-                    <span className={r.is_subcontractor ? "badge sub" : "badge"}>
-                      {r.is_subcontractor ? t("subcontractor") : t("inHouse")}
-                    </span>
+                    <div className="team-cell">
+                      <span className="entity-name team-name">{r.name}</span>
+                      <span className={r.is_subcontractor ? "team-kind sub" : "team-kind"}>
+                        {r.is_subcontractor ? t("subcontractor") : t("inHouse")}
+                      </span>
+                    </div>
                   </td>
                   <td>
                     {members.length ? (
@@ -92,7 +91,7 @@ export default async function TeamsPage() {
             })}
             {(!rows || rows.length === 0) && (
               <tr>
-                <td colSpan={5} className="empty">
+                <td colSpan={4} className="empty">
                   {tc("empty")}
                 </td>
               </tr>
