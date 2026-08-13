@@ -33,9 +33,11 @@ export default async function WorkItemTypesPage() {
           <tbody>
             {(rows ?? []).map((r) => (
               <tr key={r.id}>
-                <td><span className="entity-name">{r.name}</span></td>
+                <td>
+                  <span className="tag entity-name wrap">{r.name}</span>
+                </td>
                 <td className="mono">{r.code}</td>
-                <td>{r.capacity_model === "count" ? t("count") : t("effort")}</td>
+                <td className="nowrap">{r.capacity_model === "count" ? t("count") : t("effort")}</td>
                 <td className="num">
                   {r.capacity_model === "count" ? r.base_capacity?.normal : "—"}
                 </td>

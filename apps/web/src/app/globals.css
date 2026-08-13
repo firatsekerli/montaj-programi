@@ -295,6 +295,14 @@ tr:last-child td {
   border-color: color-mix(in srgb, var(--accent) 40%, var(--border));
   background: color-mix(in srgb, var(--accent) 8%, var(--panel-2));
 }
+/* A chip that may wrap internally (for long single-name chips) instead of
+   forcing an ever-wider column. */
+.tag.wrap {
+  white-space: normal;
+}
+.nowrap {
+  white-space: nowrap;
+}
 
 /* ---- Buttons & forms ---- */
 .btn {
