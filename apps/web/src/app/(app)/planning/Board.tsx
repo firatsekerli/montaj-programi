@@ -600,7 +600,7 @@ function Card({
               setNotesOpen(true);
             }}
           >
-            📝 {t("notesTitle")}
+            {t("notesTitle")}
             {notes.length > 0 && <span className="note-count">{notes.length}</span>}
           </button>
           {!doneCard && (

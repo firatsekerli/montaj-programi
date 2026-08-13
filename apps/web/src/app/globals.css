@@ -1572,14 +1572,15 @@ button.card-action.note.has-notes {
   background: color-mix(in srgb, var(--accent) 16%, var(--panel));
 }
 button.card-action.note .note-count {
-  font-size: 0.58rem;
+  font-size: 0.5rem;
   font-weight: 700;
+  line-height: 1;
   color: #fff;
   background: var(--accent-ink);
   border-radius: 999px;
-  min-width: 0.95rem;
-  height: 0.95rem;
-  padding: 0 0.18rem;
+  min-width: 0.8rem;
+  height: 0.8rem;
+  padding: 0 0.14rem;
   display: inline-flex;
   align-items: center;
   justify-content: center;
