@@ -136,7 +136,7 @@ export function AuditTable({
                 </td>
                 <td>{r.userName ?? "—"}</td>
                 <td>{actionLabel(r.action)}</td>
-                <td className="mono">{r.label ?? "—"}</td>
+                <td className="mono uppercase">{r.label ?? "—"}</td>
                 <td className="muted-cell">{detailOf(r.details) || "—"}</td>
               </tr>
             ))}

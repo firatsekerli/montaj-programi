@@ -560,7 +560,7 @@ function Card({
           />
         )}
         {doneCard && "✓ "}
-        {a.orderCode}
+        <span className="uppercase">{a.orderCode}</span>
         {late && (
           <span className="late-badge" title={t("lateTitle")}>
             {t("late")}
@@ -786,7 +786,7 @@ function NotesModal({
       >
         <div className="notes-head">
           <h3>
-            {t("notesFor")} <span className="mono">{orderCode}</span>
+            {t("notesFor")} <span className="mono uppercase">{orderCode}</span>
           </h3>
           <button type="button" className="notes-close" onClick={onClose} aria-label={t("cancel")}>
             ×
