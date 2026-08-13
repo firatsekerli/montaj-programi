@@ -165,6 +165,14 @@ main {
   .form.form-wide {
     max-width: 1120px;
   }
+  /* The planning board is the exception: let it use the full width so the
+     weekly calendar has room instead of being boxed to 1120px. */
+  .content:has(> main.wide-page) {
+    max-width: none;
+  }
+  main.wide-page {
+    max-width: none;
+  }
 }
 
 .page-head {

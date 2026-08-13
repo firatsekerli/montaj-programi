@@ -111,7 +111,7 @@ export default async function PlanningPage({
   }
 
   return (
-    <main>
+    <main className="wide-page">
       <div className="page-head">
         <h1>{t("title")}</h1>
         <div className="head-actions">
