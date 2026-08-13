@@ -1327,6 +1327,13 @@ button.card-action.undo:hover {
 .task-filter.done-filter {
   margin-inline-start: auto;
 }
+.task-search {
+  margin-bottom: 0.9rem;
+}
+.task-search .list-search {
+  width: 100%;
+  max-width: 22rem;
+}
 .task-filter.done-filter.active {
   border-color: #2e7d32;
   background: color-mix(in srgb, #2e7d32 18%, var(--panel-2));

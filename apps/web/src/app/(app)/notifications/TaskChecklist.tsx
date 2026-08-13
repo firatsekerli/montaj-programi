@@ -1,6 +1,6 @@
 "use client";
 
-import { useMemo, useState, useTransition } from "react";
+import { useEffect, useMemo, useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
 import { useFormatter, useTranslations } from "next-intl";
 import { completeTask, reopenTask } from "@/app/actions/tasks";
@@ -26,6 +26,8 @@ const today = () => new Date().toISOString().slice(0, 10);
 
 // Filter is either "all" open, a specific kind (open), or "done" (completed).
 const DONE = "__done__";
+// How many tasks to reveal per "load more" click.
+const PAGE = 15;
 
 export function TaskChecklist({ tasks }: { tasks: TaskItem[] }) {
   const t = useTranslations("notifications");
@@ -33,6 +35,13 @@ export function TaskChecklist({ tasks }: { tasks: TaskItem[] }) {
   const [pending, startTransition] = useTransition();
   const router = useRouter();
   const [filter, setFilter] = useState<string>("all");
+  const [query, setQuery] = useState("");
+  const [limit, setLimit] = useState(PAGE);
+
+  // Reset the visible window whenever the filter or search changes.
+  useEffect(() => {
+    setLimit(PAGE);
+  }, [filter, query]);
 
   const kindLabel = (k: string) => (KNOWN.has(k) ? t(`kind.${k}`) : t("kind.other"));
   const isOverdue = (task: TaskItem) =>
@@ -67,16 +76,28 @@ export function TaskChecklist({ tasks }: { tasks: TaskItem[] }) {
 
   const showingDone = activeFilter === DONE;
   const base = showingDone ? done : open;
-  const visible = base.filter((p) => activeFilter === "all" || showingDone || p.kind === activeFilter);
+  const q = query.trim().toLocaleLowerCase("tr");
+  const matchesQuery = (task: TaskItem) =>
+    !q ||
+    task.code.toLocaleLowerCase("tr").includes(q) ||
+    task.message.toLocaleLowerCase("tr").includes(q);
+  const visible = base.filter(
+    (p) => (activeFilter === "all" || showingDone || p.kind === activeFilter) && matchesQuery(p),
+  );
 
   // Group by kind under headers when several kinds are shown ("all" or "done").
   const grouped = activeFilter === "all" || showingDone;
   const kindsToShow = grouped
     ? [...new Set(visible.map((v) => v.kind))].sort((a, b) => orderOf(a) - orderOf(b))
     : [activeFilter];
+  // Flat list in display order (kind order, then urgency), capped by the current
+  // window; "load more" grows the window. Groups are rebuilt from the capped set.
+  const orderedFlat = kindsToShow.flatMap((k) => sortTasks(visible.filter((v) => v.kind === k)));
+  const limited = orderedFlat.slice(0, limit);
+  const hasMore = orderedFlat.length > limited.length;
   const groups = kindsToShow.map((k) => ({
     kind: k,
-    items: sortTasks(visible.filter((v) => v.kind === k)),
+    items: limited.filter((v) => v.kind === k),
   }));
 
   function renderItem(task: TaskItem) {
@@ -141,8 +162,18 @@ export function TaskChecklist({ tasks }: { tasks: TaskItem[] }) {
         </button>
       </div>
 
+      <div className="task-search">
+        <input
+          type="search"
+          className="list-search"
+          value={query}
+          placeholder={t("searchOrder")}
+          onChange={(e) => setQuery(e.target.value)}
+        />
+      </div>
+
       {visible.length === 0 ? (
-        <p className="empty">{showingDone ? t("noCompleted") : t("empty")}</p>
+        <p className="empty">{q ? t("noMatch") : showingDone ? t("noCompleted") : t("empty")}</p>
       ) : (
         <div className={`task-groups${pending ? " busy" : ""}`}>
           {groups
@@ -158,6 +189,13 @@ export function TaskChecklist({ tasks }: { tasks: TaskItem[] }) {
                 <ul className="task-list">{g.items.map(renderItem)}</ul>
               </section>
             ))}
+          {hasMore && (
+            <div className="audit-more">
+              <button type="button" className="btn-ghost" onClick={() => setLimit((n) => n + PAGE)}>
+                {t("loadMore")}
+              </button>
+            </div>
+          )}
         </div>
       )}
     </div>

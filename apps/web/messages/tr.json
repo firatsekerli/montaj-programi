@@ -320,6 +320,9 @@
     "filterAll": "Tümü",
     "completed": "Tamamlanan",
     "noCompleted": "Henüz tamamlanan görev yok.",
+    "searchOrder": "Sipariş no ara…",
+    "noMatch": "Aramaya uyan görev yok.",
+    "loadMore": "Daha fazla yükle",
     "kind": {
       "production_check": "Üretim",
       "manlift_transfer": "Manlift transferi",
