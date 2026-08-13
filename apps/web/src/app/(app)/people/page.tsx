@@ -33,7 +33,7 @@ export default async function PeoplePage() {
           <tbody>
             {(rows ?? []).map((r) => (
               <tr key={r.id}>
-                <td>{r.name}</td>
+                <td><span className="entity-name">{r.name}</span></td>
                 <td>
                   <span className="badge">{r.is_lead ? t("lead") : t("member")}</span>
                 </td>

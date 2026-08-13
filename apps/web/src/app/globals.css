@@ -439,6 +439,14 @@ label.checkbox {
 label.checkbox input {
   width: auto;
 }
+/* Entity names (people, door types) are typed inconsistently (ERKAN vs Ferhat).
+   Normalize the DISPLAY to uppercase — data is untouched — at a slightly smaller
+   size so the wider all-caps text still fits. */
+.entity-name {
+  text-transform: uppercase;
+  font-size: 0.9em;
+  letter-spacing: 0.01em;
+}
 .form fieldset {
   border: 1px solid var(--border);
   border-radius: 8px;

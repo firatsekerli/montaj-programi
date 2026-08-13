@@ -518,7 +518,7 @@ function Card({
         )}
       </strong>
       <span className="card-line">
-        {a.units}× {a.typeName}
+        {a.units}× <span className="entity-name">{a.typeName}</span>
       </span>
       <span className="card-cost">
         {doneCard ? t("installedDone", { n: a.units }) : t("dayShare", { pct: Math.round(a.cost * 100) })}
@@ -636,7 +636,7 @@ function Card({
                       checked={installers.has(p.id)}
                       onChange={() => toggleInstaller(p.id)}
                     />
-                    {p.name}
+                    <span className="entity-name">{p.name}</span>
                   </label>
                 ))}
               </div>

@@ -87,7 +87,7 @@ export async function TeamForm({
           {people.map((p) => (
             <label key={p.id} className="checkbox">
               <input type="checkbox" name="members" value={p.id} defaultChecked={memberSet.has(p.id)} />
-              {p.name}
+              <span className="entity-name">{p.name}</span>
             </label>
           ))}
         </fieldset>
@@ -105,7 +105,7 @@ export async function TeamForm({
                   value={ty.id}
                   defaultChecked={capSet.has(ty.id)}
                 />
-                {ty.name}
+                <span className="entity-name">{ty.name}</span>
               </label>
               <input
                 name={`cap_${ty.id}`}
