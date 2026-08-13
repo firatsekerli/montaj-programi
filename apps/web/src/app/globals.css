@@ -392,6 +392,9 @@ tr:last-child td {
 .nowrap {
   white-space: nowrap;
 }
+.uppercase {
+  text-transform: uppercase;
+}
 /* Kapı Tipleri table column sizing: wider name, narrower number columns. */
 .wit-col-name {
   width: 36%;

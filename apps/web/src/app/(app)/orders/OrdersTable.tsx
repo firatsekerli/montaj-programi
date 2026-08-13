@@ -108,7 +108,7 @@ export function OrdersTable({ orders }: { orders: OrderRow[] }) {
         <tbody>
           {visible.map((r) => (
             <tr key={r.id}>
-              <td className="mono">{r.code}</td>
+              <td className="mono uppercase">{r.code}</td>
               <td>{r.district ?? "—"}</td>
               <td>{fmt(r.orderDate)}</td>
               <td>{fmt(r.deliveryDate)}</td>
