@@ -137,7 +137,9 @@ export default async function DashboardPage({
               const type = toEngineType(row);
               return (
                 <tr key={row.id}>
-                  <td>{row.name}</td>
+                  <td>
+                    <span className="entity-name">{row.name}</span>
+                  </td>
                   <td className="num">{dailyCapacity(type, shiftNormal, [])}</td>
                   <td className="num">{dailyCapacity(type, shiftOvertime, [])}</td>
                 </tr>

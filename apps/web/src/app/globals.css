@@ -1304,13 +1304,14 @@ button.card-action.undo:hover {
   border-radius: 5px;
   background: color-mix(in srgb, var(--accent) 16%, transparent);
   border: 1px solid color-mix(in srgb, var(--accent) 32%, transparent);
-  font-size: 0.72rem;
+  font-size: 0.66rem;
   line-height: 1.5;
 }
 .cal-chip-code {
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
+  text-transform: uppercase;
 }
 .cal-chip-units {
   color: var(--muted);
