@@ -50,6 +50,9 @@ export default async function AppLayout({ children }: { children: ReactNode }) {
           </Suspense>
         </div>
         <nav>
+          <Link href="/guide" className="guide-link">
+            {t("guide")}
+          </Link>
           {links.map((l) => (
             <Link key={l.href} href={l.href}>
               {l.label}

@@ -15,7 +15,14 @@
     "assets": "Araçlar ve Ekipman",
     "sites": "Şantiyeler",
     "audit": "Geçmiş",
+    "guide": "Kullanma Kılavuzu",
     "signOut": "Çıkış Yap"
+  },
+  "guide": {
+    "title": "Kullanma Kılavuzu",
+    "subtitle": "Programın sol menüsündeki her bölümün ne işe yaradığı.",
+    "intro": "Aşağıda menüdeki tüm bölümler listelenmiştir. Her bölümün ayrıntılı anlatımı yakında eklenecektir.",
+    "comingSoon": "Ayrıntılı anlatım yakında"
   },
   "crud": {
     "new": "Yeni",
