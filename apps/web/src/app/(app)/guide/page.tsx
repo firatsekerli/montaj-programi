@@ -1,28 +1,15 @@
 import Link from "next/link";
 import { getTranslations } from "next-intl/server";
+import { GUIDE_SECTIONS } from "./sections";
+import { GUIDE_CONTENT } from "./content";
 
 /**
- * Kullanma Kılavuzu (user guide). For now this only lists every left-menu
- * section as an outline — the detailed per-section content will be filled in
- * later. Each item links to the section it documents.
+ * Kullanma Kılavuzu (user guide) index — lists every left-menu section. Sections
+ * that have been written link to their guide page; the rest show "yakında".
  */
 export default async function GuidePage() {
   const t = await getTranslations("guide");
   const nav = await getTranslations("nav");
-
-  // Same order as the sidebar menu.
-  const items = [
-    { href: "/", key: "dashboard" },
-    { href: "/planning", key: "planning" },
-    { href: "/notifications", key: "notifications" },
-    { href: "/orders", key: "orders" },
-    { href: "/work-item-types", key: "workItemTypes" },
-    { href: "/rules", key: "rules" },
-    { href: "/teams", key: "teams" },
-    { href: "/people", key: "people" },
-    { href: "/assets", key: "assets" },
-    { href: "/audit", key: "audit" },
-  ] as const;
 
   return (
     <main>
@@ -31,12 +18,19 @@ export default async function GuidePage() {
       <div className="panel">
         <p className="note">{t("intro")}</p>
         <ol className="guide-index">
-          {items.map((it) => (
-            <li key={it.href}>
-              <Link href={it.href}>{nav(it.key)}</Link>
-              <span className="guide-soon">{t("comingSoon")}</span>
-            </li>
-          ))}
+          {GUIDE_SECTIONS.map((s) => {
+            const ready = Boolean(GUIDE_CONTENT[s.slug]);
+            return (
+              <li key={s.slug}>
+                {ready ? (
+                  <Link href={`/guide/${s.slug}`}>{nav(s.navKey)}</Link>
+                ) : (
+                  <span className="guide-pending">{nav(s.navKey)}</span>
+                )}
+                <span className="guide-soon">{ready ? t("ready") : t("comingSoon")}</span>
+              </li>
+            );
+          })}
         </ol>
       </div>
     </main>

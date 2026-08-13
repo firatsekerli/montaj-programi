@@ -314,6 +314,40 @@ tr:last-child td {
   font-size: 0.78rem;
   white-space: nowrap;
 }
+.guide-pending {
+  color: var(--muted);
+}
+/* Guide section page (prose) */
+.guide-back {
+  margin: 0 0 0.5rem;
+}
+.guide-content h2 {
+  font-size: 1.1rem;
+  margin: 1.5rem 0 0.55rem;
+}
+.guide-content h2:first-child {
+  margin-top: 0;
+}
+.guide-content p {
+  margin: 0 0 0.75rem;
+  line-height: 1.65;
+}
+.guide-content ul {
+  margin: 0 0 1rem;
+  padding-inline-start: 1.3rem;
+  display: flex;
+  flex-direction: column;
+  gap: 0.4rem;
+}
+.guide-content li {
+  line-height: 1.55;
+}
+.guide-golive {
+  margin: 1.5rem 0 0;
+  padding-top: 1rem;
+  border-top: 1px solid var(--border);
+  font-weight: 600;
+}
 
 /* ---- Tag chips (member / capability lists) ---- */
 .tag-list {

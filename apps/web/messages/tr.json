@@ -21,8 +21,10 @@
   "guide": {
     "title": "Kullanma Kılavuzu",
     "subtitle": "Programın sol menüsündeki her bölümün ne işe yaradığı.",
-    "intro": "Aşağıda menüdeki tüm bölümler listelenmiştir. Her bölümün ayrıntılı anlatımı yakında eklenecektir.",
-    "comingSoon": "Ayrıntılı anlatım yakında"
+    "intro": "Aşağıda menüdeki tüm bölümler listelenmiştir. Bir bölüme tıklayarak anlatımını okuyabilirsiniz. Anlatımı henüz hazırlanmamış bölümler yakında eklenecektir.",
+    "comingSoon": "Yakında",
+    "ready": "Hazır →",
+    "openSection": "{name} bölümüne git →"
   },
   "crud": {
     "new": "Yeni",
