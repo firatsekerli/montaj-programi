@@ -93,9 +93,27 @@ export function PlanningBoard({
   const t = useTranslations("planning");
   const sensors = useSensors(useSensor(PointerSensor, { activationConstraint: { distance: 4 } }));
 
-  // Focus mode: hide completed (installed) cards so only remaining work shows.
+  // Board filters (view-only): focus on the work that needs attention.
   const [hideDone, setHideDone] = useState(false);
-  const visibleItems = hideDone ? items.filter((a) => a.status !== "completed") : items;
+  const [lateOnly, setLateOnly] = useState(false);
+  const [query, setQuery] = useState("");
+  const [teamFilter, setTeamFilter] = useState("all");
+  const isLate = (a: BoardAssignment) => Boolean(a.deliveryDate && a.date > a.deliveryDate);
+  const q = query.trim().toLocaleLowerCase("tr");
+  const anyFilter = hideDone || lateOnly || q !== "" || teamFilter !== "all";
+  const visibleItems = items.filter(
+    (a) =>
+      (!hideDone || a.status !== "completed") &&
+      (!lateOnly || isLate(a)) &&
+      (!q || a.orderCode.toLocaleLowerCase("tr").includes(q)),
+  );
+  const visibleTeams = teamFilter === "all" ? teams : teams.filter((tm) => tm.id === teamFilter);
+  function clearFilters() {
+    setHideDone(false);
+    setLateOnly(false);
+    setQuery("");
+    setTeamFilter("all");
+  }
 
   // Bulk-move: pick several cards, then send them all to a team + date.
   const [bulkMode, setBulkMode] = useState(false);
@@ -219,6 +237,25 @@ export function PlanningBoard({
             <button type="button" className="btn-ghost" onClick={() => setBulkMode(true)}>
               {t("bulkMove")}
             </button>
+            <select
+              value={teamFilter}
+              onChange={(e) => setTeamFilter(e.target.value)}
+              aria-label={t("filterTeam")}
+            >
+              <option value="all">{t("allTeams")}</option>
+              {teams.map((tm) => (
+                <option key={tm.id} value={tm.id}>
+                  {tm.name}
+                </option>
+              ))}
+            </select>
+            <input
+              type="search"
+              className="list-search"
+              value={query}
+              placeholder={t("searchOrder")}
+              onChange={(e) => setQuery(e.target.value)}
+            />
             <label className="board-toggle">
               <input
                 type="checkbox"
@@ -227,6 +264,19 @@ export function PlanningBoard({
               />
               {t("hideDone")}
             </label>
+            <label className="board-toggle">
+              <input
+                type="checkbox"
+                checked={lateOnly}
+                onChange={(e) => setLateOnly(e.target.checked)}
+              />
+              {t("lateOnly")}
+            </label>
+            {anyFilter && (
+              <button type="button" className="task-clear" onClick={clearFilters}>
+                {t("clearFilters")}
+              </button>
+            )}
           </>
         ) : (
           <>
@@ -281,7 +331,7 @@ export function PlanningBoard({
             </div>
           ))}
 
-          {teams.map((team) => (
+          {visibleTeams.map((team) => (
             <BoardRow
               key={team.id}
               team={team}
