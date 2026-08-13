@@ -93,6 +93,10 @@ export function PlanningBoard({
   const t = useTranslations("planning");
   const sensors = useSensors(useSensor(PointerSensor, { activationConstraint: { distance: 4 } }));
 
+  // Focus mode: hide completed (installed) cards so only remaining work shows.
+  const [hideDone, setHideDone] = useState(false);
+  const visibleItems = hideDone ? items.filter((a) => a.status !== "completed") : items;
+
   // Bulk-move: pick several cards, then send them all to a team + date.
   const [bulkMode, setBulkMode] = useState(false);
   const [selected, setSelected] = useState<Set<string>>(new Set());
@@ -125,7 +129,7 @@ export function PlanningBoard({
   // A weekend column stays narrow until a card is dropped on it (anywhere in the
   // column). Computed once so header and every row cell agree on the width.
   const narrowDays = new Set(
-    weekDays.filter((d) => isWeekend(d) && !items.some((a) => a.date === d)),
+    weekDays.filter((d) => isWeekend(d) && !visibleItems.some((a) => a.date === d)),
   );
   // Day columns keep a comfortable minimum width; when the 9 days don't fit, the
   // board scrolls horizontally inside its own container instead of squashing.
@@ -193,7 +197,7 @@ export function PlanningBoard({
     const ro = new ResizeObserver(update);
     ro.observe(inner);
     return () => ro.disconnect();
-  }, [weekDays, items]);
+  }, [weekDays, visibleItems]);
   const syncFrom = (src: HTMLDivElement | null, dst: HTMLDivElement | null) => {
     if (src && dst && dst.scrollLeft !== src.scrollLeft) dst.scrollLeft = src.scrollLeft;
   };
@@ -211,9 +215,19 @@ export function PlanningBoard({
 
       <div className="bulk-bar no-print">
         {!bulkMode ? (
-          <button type="button" className="btn-ghost" onClick={() => setBulkMode(true)}>
-            {t("bulkMove")}
-          </button>
+          <>
+            <button type="button" className="btn-ghost" onClick={() => setBulkMode(true)}>
+              {t("bulkMove")}
+            </button>
+            <label className="board-toggle">
+              <input
+                type="checkbox"
+                checked={hideDone}
+                onChange={(e) => setHideDone(e.target.checked)}
+              />
+              {t("hideDone")}
+            </label>
+          </>
         ) : (
           <>
             <strong>{t("selectedN", { n: selected.size })}</strong>
@@ -275,7 +289,7 @@ export function PlanningBoard({
               people={people}
               weekDays={weekDays}
               narrowDays={narrowDays}
-              items={items}
+              items={visibleItems}
               notesByOrder={notesByOrder}
               onUnpin={onUnpin}
               onMove={apply}

@@ -289,6 +289,7 @@
     "moveTitle": "Başka ekibe/güne/haftaya taşı",
     "move": "Taşı",
     "bulkMove": "Toplu Taşı",
+    "hideDone": "Takılanları gizle",
     "selectedN": "{n} seçili",
     "select": "Seç",
     "cancel": "Vazgeç",
