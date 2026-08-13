@@ -312,6 +312,7 @@ tr:last-child td {
 .form.form-wide > .row-2,
 .form.form-wide > .help,
 .form.form-wide > .field-label,
+.form.form-wide > .checkbox,
 .form.form-wide > .note,
 .form.form-wide > button[type="submit"] {
   grid-column: 1 / -1;
