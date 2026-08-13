@@ -157,6 +157,27 @@ export async function generatePlan() {
     if (c) siteCoords[order.id] = { lat: c.lat, lon: c.lon };
   }
 
+  // Which orders already have a committed/kept chunk on the board (pinned or
+  // installed), and on which team's latest committed day. Their remainder must be
+  // (re)planned FIRST so it continues consecutively from that chunk instead of
+  // being scattered to the end of the horizon.
+  const lineToOrder = new Map<string, string>();
+  for (const order of orders ?? []) {
+    for (const l of order.order_line ?? []) lineToOrder.set(l.id, order.id);
+  }
+  const startedTeamByOrder = new Map<string, string>();
+  const startedLatestDay = new Map<string, string>();
+  for (const k of fixed) {
+    if (!k.order_line_id) continue;
+    const oid = lineToOrder.get(k.order_line_id);
+    if (!oid) continue;
+    const prev = startedLatestDay.get(oid);
+    if (!prev || k.assign_date > prev) {
+      startedLatestDay.set(oid, k.assign_date);
+      startedTeamByOrder.set(oid, k.team_id);
+    }
+  }
+
   const scheduleOrders: ScheduleOrder[] = [];
   for (const order of orders ?? []) {
     // Manlift asked per order: when the order doesn't need it, strip the type's
@@ -194,6 +215,8 @@ export async function generatePlan() {
       lines,
       earliestDate: earliestDate < firstDay ? firstDay : earliestDate,
       deliveryDate: order.delivery_date,
+      continuesStartedWork: startedTeamByOrder.has(order.id),
+      startedTeamId: startedTeamByOrder.get(order.id),
     });
   }
 

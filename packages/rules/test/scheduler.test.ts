@@ -148,6 +148,37 @@ describe("delivery-driven scheduler", () => {
     expect(assignments.some((x) => x.teamId === "B")).toBe(false);
   });
 
+  it("continues a started order's remainder consecutively, ahead of other work", () => {
+    // Regenerate scenario: order A has a committed (pinned) chunk on day 0, and
+    // its remainder (14) is being re-planned alongside six smaller orders with an
+    // EARLIER delivery date. Without priority, A's remainder would sort behind the
+    // smalls and land at the end of the horizon (a gap after its pinned day). With
+    // continuesStartedWork it schedules first and continues on days 1–2.
+    const A = order({
+      orderId: "A", orderCode: "AAA", siteId: "sa", deliveryDate: HORIZON[9]!,
+      continuesStartedWork: true, startedTeamId: "T",
+      lines: [{ orderLineId: "la", type: fullFrameSingleFire, quantity: 14, facts: {} }],
+    });
+    const smalls = [1, 2, 3, 4, 5, 6].map((n) =>
+      order({
+        orderId: `S${n}`, orderCode: `S${n}`, siteId: `s${n}`, deliveryDate: HORIZON[2]!,
+        lines: [{ orderLineId: `l${n}`, type: fullFrameSingleFire, quantity: 7, facts: {} }],
+      }),
+    );
+    const { assignments } = schedule({
+      workingDays: HORIZON,
+      shift: dimakShift,
+      rules: dimakRules,
+      teams: [team({ id: "T" })],
+      committed: [{ teamId: "T", date: HORIZON[0]!, cost: 1 }], // A's pinned day-0 chunk
+      orders: [A, ...smalls],
+    });
+    const aDays = assignments.filter((x) => x.orderCode === "AAA").map((x) => x.date).sort();
+    // A's remainder lands on the two days right after its committed day 0 — not
+    // deferred to the end of the horizon.
+    expect(aDays).toEqual([HORIZON[1]!, HORIZON[2]!]);
+  });
+
   it("starts with the site nearest the base when deadlines tie", () => {
     // Two orders share the same window; NEAR is next to the base, FAR is ~80 km
     // out. Even though FAR sorts first by code, NEAR (closer) is scheduled first

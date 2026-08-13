@@ -60,6 +60,17 @@ export interface ScheduleOrder {
   earliestDate: string;
   /** Deadline — installation must finish by this date (null = no deadline). */
   deliveryDate: string | null;
+  /**
+   * True when this order already has committed/kept work (a pinned or installed
+   * chunk) on the board and only its remainder is being (re)planned. Such orders
+   * are scheduled FIRST so the remainder continues on consecutive days right
+   * after the committed part, instead of being deferred behind other orders when
+   * the plan is regenerated.
+   */
+  continuesStartedWork?: boolean;
+  /** The team the committed chunk is on — preferred for the remainder so the
+   *  continuation stays with the same crew. */
+  startedTeamId?: string;
 }
 
 /** Team-day budget already consumed by started/kept assignments. */
@@ -258,6 +269,10 @@ export function schedule(input: ScheduleInput): ScheduleOutput {
   // to base wins), then code for stability.
   const sorted = [...orders].sort(
     (a, b) =>
+      // Orders already started (a pinned/installed chunk on the board) go FIRST so
+      // their remainder claims the next consecutive days before other work does —
+      // otherwise a regenerate scatters the remainder to the end of the horizon.
+      Number(Boolean(b.continuesStartedWork)) - Number(Boolean(a.continuesStartedWork)) ||
       (a.deliveryDate ?? FAR_FUTURE).localeCompare(b.deliveryDate ?? FAR_FUTURE) ||
       a.earliestDate.localeCompare(b.earliestDate) ||
       (orderDist.get(a.orderId) ?? 0) - (orderDist.get(b.orderId) ?? 0) ||
@@ -313,10 +328,13 @@ export function schedule(input: ScheduleInput): ScheduleOutput {
       // parallel; fire keeps one team unless the deadline forces a spill.
       const parallel = groupLines.every((l) => l.type.allowParallelTeams === true);
 
-      // Fill this crew group: in-house first, then least-loaded, then nearest.
+      // Fill this crew group: the team that already started this order first (so
+      // the remainder stays with the same crew), then in-house, least-loaded,
+      // nearest.
       const fill = (win: string[]) => {
         const ordered = [...pool].sort(
           (a, b) =>
+            Number(b.id === order.startedTeamId) - Number(a.id === order.startedTeamId) ||
             a.preferenceWeight - b.preferenceWeight ||
             loadInWindow(a.id, win) - loadInWindow(b.id, win) ||
             baseToSiteMin(a, order.siteId) - baseToSiteMin(b, order.siteId),
