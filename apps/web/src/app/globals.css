@@ -248,6 +248,29 @@ tr:last-child td {
   border-color: color-mix(in srgb, var(--warn) 45%, var(--border));
 }
 
+/* ---- Tag chips (member / capability lists) ---- */
+.tag-list {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.3rem;
+}
+.tag {
+  display: inline-block;
+  padding: 0.15rem 0.55rem;
+  border: 1px solid var(--border);
+  border-radius: 999px;
+  background: var(--panel-2);
+  color: var(--muted);
+  font-size: 0.72rem;
+  letter-spacing: 0.01em;
+  white-space: nowrap;
+}
+.tag.accent {
+  color: var(--accent-ink);
+  border-color: color-mix(in srgb, var(--accent) 40%, var(--border));
+  background: color-mix(in srgb, var(--accent) 8%, var(--panel-2));
+}
+
 /* ---- Buttons & forms ---- */
 .btn {
   display: inline-block;

@@ -39,22 +39,46 @@ export default async function TeamsPage() {
             {(rows ?? []).map((r) => {
               const members = (r.team_member ?? [])
                 .map((m) => one<{ name: string }>(m.person)?.name)
-                .filter(Boolean)
-                .join(", ");
+                .filter((n): n is string => Boolean(n));
               const caps = (r.team_capability ?? [])
                 .map((c) => one<{ name: string }>(c.work_item_type)?.name)
-                .filter(Boolean)
-                .join(", ");
+                .filter((n): n is string => Boolean(n));
               return (
                 <tr key={r.id}>
-                  <td>{r.name}</td>
+                  <td>
+                    <span className="entity-name">{r.name}</span>
+                  </td>
                   <td>
                     <span className={r.is_subcontractor ? "badge sub" : "badge"}>
                       {r.is_subcontractor ? t("subcontractor") : t("inHouse")}
                     </span>
                   </td>
-                  <td>{members || "—"}</td>
-                  <td className="muted-cell">{caps || "—"}</td>
+                  <td>
+                    {members.length ? (
+                      <div className="tag-list">
+                        {members.map((n) => (
+                          <span key={n} className="tag entity-name">
+                            {n}
+                          </span>
+                        ))}
+                      </div>
+                    ) : (
+                      "—"
+                    )}
+                  </td>
+                  <td>
+                    {caps.length ? (
+                      <div className="tag-list">
+                        {caps.map((n) => (
+                          <span key={n} className="tag entity-name">
+                            {n}
+                          </span>
+                        ))}
+                      </div>
+                    ) : (
+                      "—"
+                    )}
+                  </td>
                   <td className="row-actions">
                     <Link href={`/teams/${r.id}`}>{tc("edit")}</Link>
                     <form action={deleteTeam.bind(null, r.id)}>
