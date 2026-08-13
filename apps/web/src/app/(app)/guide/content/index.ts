@@ -4,6 +4,7 @@ import { AssetsGuide } from "./assets";
 import { PeopleGuide } from "./people";
 import { TeamsGuide } from "./teams";
 import { RulesGuide } from "./rules";
+import { WorkItemTypesGuide } from "./work-item-types";
 
 // Slug → content component. A section appears as "hazır" in the index (and is
 // reachable at /guide/<slug>) exactly when it has an entry here. Sections are
@@ -14,4 +15,5 @@ export const GUIDE_CONTENT: Record<string, ComponentType> = {
   people: PeopleGuide,
   teams: TeamsGuide,
   rules: RulesGuide,
+  "work-item-types": WorkItemTypesGuide,
 };
