@@ -19,7 +19,7 @@ import {
   undoInstalled,
   unpinAssignment,
 } from "@/app/actions/planning";
-import { addOrderNote, deleteOrderNote } from "@/app/actions/notes";
+import { addCardNote, deleteOrderNote } from "@/app/actions/notes";
 
 export interface NoteItem {
   id: string;
@@ -72,12 +72,14 @@ export function PlanningBoard({
   weekDays,
   assignments,
   notesByOrder,
+  notesByAssignment,
 }: {
   teams: TeamRow[];
   people: PersonRow[];
   weekDays: string[];
   assignments: BoardAssignment[];
   notesByOrder: Record<string, NoteItem[]>;
+  notesByAssignment: Record<string, NoteItem[]>;
 }) {
   const [items, setItems] = useState(assignments);
   // Re-sync when the server sends new data (after generate/regenerate, week
@@ -341,6 +343,7 @@ export function PlanningBoard({
               narrowDays={narrowDays}
               items={visibleItems}
               notesByOrder={notesByOrder}
+              notesByAssignment={notesByAssignment}
               onUnpin={onUnpin}
               onMove={apply}
               onRecord={onRecord}
@@ -364,6 +367,7 @@ function BoardRow({
   narrowDays,
   items,
   notesByOrder,
+  notesByAssignment,
   onUnpin,
   onMove,
   onRecord,
@@ -379,6 +383,7 @@ function BoardRow({
   narrowDays: Set<string>;
   items: BoardAssignment[];
   notesByOrder: Record<string, NoteItem[]>;
+  notesByAssignment: Record<string, NoteItem[]>;
   onUnpin: (id: string) => void;
   onMove: (id: string, teamId: string, date: string) => void;
   onRecord: (id: string, installed: number, installerIds: string[]) => void;
@@ -402,6 +407,7 @@ function BoardRow({
             teams={teams}
             people={people}
             notesByOrder={notesByOrder}
+            notesByAssignment={notesByAssignment}
             weekend={isWeekend(d)}
             narrow={narrowDays.has(d)}
             onUnpin={onUnpin}
@@ -425,6 +431,7 @@ function Cell({
   teams,
   people,
   notesByOrder,
+  notesByAssignment,
   weekend,
   narrow,
   onUnpin,
@@ -441,6 +448,7 @@ function Cell({
   teams: TeamRow[];
   people: PersonRow[];
   notesByOrder: Record<string, NoteItem[]>;
+  notesByAssignment: Record<string, NoteItem[]>;
   weekend: boolean;
   narrow: boolean;
   onUnpin: (id: string) => void;
@@ -473,7 +481,7 @@ function Cell({
           a={c}
           teams={teams}
           people={people}
-          notes={notesByOrder[c.orderId] ?? []}
+          notes={[...(notesByOrder[c.orderId] ?? []), ...(notesByAssignment[c.id] ?? [])]}
           onUnpin={onUnpin}
           onMove={onMove}
           onRecord={onRecord}
@@ -723,7 +731,7 @@ function Card({
 
       {notesOpen && (
         <NotesModal
-          orderId={a.orderId}
+          assignmentId={a.id}
           orderCode={a.orderCode}
           notes={notes}
           onClose={() => setNotesOpen(false)}
@@ -735,12 +743,12 @@ function Card({
 
 /** Full-screen modal listing an order's notes, with add + delete. */
 function NotesModal({
-  orderId,
+  assignmentId,
   orderCode,
   notes,
   onClose,
 }: {
-  orderId: string;
+  assignmentId: string;
   orderCode: string;
   notes: NoteItem[];
   onClose: () => void;
@@ -757,7 +765,7 @@ function NotesModal({
     if (!body || busy) return;
     setBusy(true);
     startTransition(async () => {
-      await addOrderNote(orderId, body);
+      await addCardNote(assignmentId, body);
       setDraft("");
       setBusy(false);
       router.refresh();

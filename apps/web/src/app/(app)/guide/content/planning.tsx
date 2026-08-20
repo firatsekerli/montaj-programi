@@ -94,9 +94,11 @@ export function PlanningGuide() {
 
       <h2>Notlar</h2>
       <p>
-        Her kartta <strong>📝 Notlar</strong> vardır. Bir siparişe birden çok not eklenebilir; not{" "}
-        <strong>tüm siparişe</strong> yazılır ve o siparişin her kartında görünür (iş birden çok güne
-        bölünse bile). Notların yanındaki sayı, kaç not olduğunu gösterir.
+        Her kartta <strong>📝 Notlar</strong> vardır. Not <strong>yalnızca o karta</strong> yazılır —
+        bir sipariş birden çok güne/karta bölündüğünde (ör. 8 kapının 5’i bir gün, kalan 3’ü başka gün)
+        her kart kendi notunu tutar; bir karttaki not diğer kartlarda görünmez. Bir karta birden çok not
+        eklenebilir; yanındaki sayı not adedini gösterir. Notu olan kart, <strong>Yeniden Oluştur</strong>’da
+        korunur (notu kaybolmaz).
       </p>
 
       <h2>Yazdır ve Dışa Aktar</h2>

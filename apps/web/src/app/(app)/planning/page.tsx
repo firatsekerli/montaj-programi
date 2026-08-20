@@ -55,26 +55,37 @@ export default async function PlanningPage({
 
   const unplaced: Unplaced[] = (plan?.unplaced as Unplaced[] | undefined) ?? [];
 
-  // Per-order notes shown on cards. Tolerant of a lagging migration (0026): if
-  // the table is absent, cards simply show no notes.
+  // Notes shown on cards. New notes are per CARD (assignment_id); legacy notes
+  // (assignment_id NULL) stay order-wide. Tolerant of a lagging migration: 0026
+  // absent → no notes; 0027 absent → all notes order-wide.
   const notesByOrder: Record<string, NoteItem[]> = {};
-  const notesRes = await supabase
+  const notesByAssignment: Record<string, NoteItem[]> = {};
+  const withAssignment = await supabase
     .from("order_note")
-    .select("id, order_id, body, author_name, created_at")
+    .select("id, order_id, assignment_id, body, author_name, created_at")
     .order("created_at", { ascending: true });
+  const notesRes = withAssignment.error
+    ? await supabase
+        .from("order_note")
+        .select("id, order_id, body, author_name, created_at")
+        .order("created_at", { ascending: true })
+    : withAssignment;
   for (const n of (notesRes.data ?? []) as Array<{
     id: string;
     order_id: string;
+    assignment_id?: string | null;
     body: string;
     author_name: string | null;
     created_at: string;
   }>) {
-    (notesByOrder[n.order_id] ??= []).push({
+    const item: NoteItem = {
       id: n.id,
       body: n.body,
       authorName: n.author_name,
       createdAt: n.created_at,
-    });
+    };
+    if (n.assignment_id) (notesByAssignment[n.assignment_id] ??= []).push(item);
+    else (notesByOrder[n.order_id] ??= []).push(item);
   }
 
   let assignments: BoardAssignment[] = [];
@@ -141,6 +152,7 @@ export default async function PlanningPage({
           weekDays={weekDays}
           assignments={assignments}
           notesByOrder={notesByOrder}
+          notesByAssignment={notesByAssignment}
         />
       )}
 

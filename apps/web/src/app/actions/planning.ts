@@ -105,11 +105,25 @@ export async function generatePlan() {
     rows = (withManual.data ?? []) as Row[];
   }
 
+  // Cards carrying a per-card note are preserved across a re-plan (like manual
+  // ones), so a card-scoped note is never orphaned. Tolerant of a lagging 0027.
+  const notedIds = new Set<string>();
+  {
+    const noteRes = await supabase.from("order_note").select("assignment_id").not("assignment_id", "is", null);
+    for (const n of (noteRes.data ?? []) as Array<{ assignment_id: string | null }>) {
+      if (n.assignment_id) notedIds.add(n.assignment_id);
+    }
+  }
+
   const fixed = rows.filter(
-    (r) => r.status === "in_progress" || r.status === "completed" || r.manual === true,
+    (r) =>
+      r.status === "in_progress" ||
+      r.status === "completed" ||
+      r.manual === true ||
+      notedIds.has(r.id),
   );
   const deleteIds = rows
-    .filter((r) => r.status === "planned" && r.manual !== true)
+    .filter((r) => r.status === "planned" && r.manual !== true && !notedIds.has(r.id))
     .map((r) => r.id);
 
   const committed = fixed.map((k) => ({
@@ -995,6 +1009,14 @@ export async function clearPlan() {
         .filter((r) => r.manual !== true)
         .map((r) => r.id);
     }
+    // Keep cards that carry a per-card note (tolerant of a lagging 0027).
+    const noteRes = await supabase.from("order_note").select("assignment_id").not("assignment_id", "is", null);
+    const notedIds = new Set(
+      ((noteRes.data ?? []) as Array<{ assignment_id: string | null }>)
+        .map((n) => n.assignment_id)
+        .filter(Boolean) as string[],
+    );
+    deleteIds = deleteIds.filter((id) => !notedIds.has(id));
     if (deleteIds.length) await supabase.from("assignment").delete().in("id", deleteIds);
     await supabase.from("plan").update({ unplaced: [] }).eq("id", plan.id);
   }
