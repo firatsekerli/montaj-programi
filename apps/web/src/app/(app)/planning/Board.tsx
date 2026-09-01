@@ -100,7 +100,8 @@ export function PlanningBoard({
   const [lateOnly, setLateOnly] = useState(false);
   const [query, setQuery] = useState("");
   const [teamFilter, setTeamFilter] = useState("all");
-  const isLate = (a: BoardAssignment) => Boolean(a.deliveryDate && a.date > a.deliveryDate);
+  const isLate = (a: BoardAssignment) =>
+    a.status !== "completed" && Boolean(a.deliveryDate && a.date > a.deliveryDate);
   const q = query.trim().toLocaleLowerCase("tr");
   const anyFilter = hideDone || lateOnly || q !== "" || teamFilter !== "all";
   const visibleItems = items.filter(
@@ -546,7 +547,9 @@ function Card({
   const style = transform
     ? { transform: `translate(${transform.x}px, ${transform.y}px)`, zIndex: 20 }
     : undefined;
-  const late = Boolean(a.deliveryDate && a.date > a.deliveryDate);
+  // A completed (installed) card is never "late" — once the doors are in, the
+  // gecikme uyarısı düşer; the card shows as done (green), not red.
+  const late = !doneCard && Boolean(a.deliveryDate && a.date > a.deliveryDate);
 
   return (
     <div
